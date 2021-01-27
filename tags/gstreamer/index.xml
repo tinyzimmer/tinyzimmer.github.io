@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>gstreamer on tinyzimmer&#39;s blog</title>
+    <link>https://tinyzimmer.github.io/tags/gstreamer/</link>
+    <description>Recent content in gstreamer on tinyzimmer&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 27 Jan 2021 06:54:29 +0200</lastBuildDate><atom:link href="https://tinyzimmer.github.io/tags/gstreamer/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>GStreamer, Go and Kubernetes</title>
+      <link>https://tinyzimmer.github.io/posts/gstreamer-go-and-k8s/</link>
+      <pubDate>Wed, 27 Jan 2021 06:54:29 +0200</pubDate>
+      
+      <guid>https://tinyzimmer.github.io/posts/gstreamer-go-and-k8s/</guid>
+      <description>Back when I was working on kvdi (a Kubernetes-native &amp;ldquo;Virtual Desktop Infrastructure&amp;rdquo; written in Go), I got to the inevitable point that I wanted support for audio streams from the user desktops. In a web-based VDI solution, this posed several challenges:
+ Raw PCM data is huge, and as such is not suitable for streaming over low latency networks.  To work with browser-native audio APIs, we need either raw PCM or one from a small set of browser supported encodings (WASM opens more doors, but I wanted to avoid it).</description>
+    </item>
+    
+  </channel>
+</rss>
