@@ -245,7 +245,7 @@ This is where I ventured to mimic (as closely as possible) how this would look i
 The <code>pipelineCfg</code> is populated with the deserialized contents of the <code>elements</code> block shown above in the <em>CustomResource</em>.
 We then make our source MinIO element pointing at the object that triggered this pipeline and add it to the <em>GstPipeline</em>.</p>
 <p>Now is where things begin to get exciting. We need to iterate the element configurations provided by the user, and link them up properly in the pipeline.
-We also need to take into account that the user may have defined elements that are providing dynamic sink pads and can&rsquo;t be linked right away, and we&rsquo;ll get more into that later.</p>
+We also need to take into account that the user may have defined elements that are providing dynamic src pads and can&rsquo;t be linked right away, and we&rsquo;ll get more into that later.</p>
 <p>To start, we&rsquo;ll declare some pointers outside of the scope of the <code>for</code> loop we are about to do.</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Track a pointer to the last element we iterated on in the pipeline
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">last</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">Element</span> = <span style="color:#a6e22e">src</span>
