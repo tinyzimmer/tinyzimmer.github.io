@@ -502,7 +502,7 @@ This structure contains a series of callbacks that get executed during class and
 We won&rsquo;t be needing all of the initializers, or any of the finalizers, primarily because we will be managing most of our Go memory via the Go runtime and its finalizers.</p>
 <p>What we&rsquo;d like to do is define the necessary callbacks in Go such that they can interact with the appropriate Go types, and use those to initialize what&rsquo;s needed for the Go runtime.
 It&rsquo;s here where we begin to run into some of our challenges with CGO. Remember when we said that Go pointers cannot be passed as arguments to C code?
-Well that would seem to be a nail in the coffin for accomplishing this but we do have some workarounds.</p>
+Well that would seem to be a nail in the coffin for accomplishing this, <em>but</em> we do have some workarounds.</p>
 <p>The first thing CGO lets us do that we can use to get over this hurdle, is in a separate file define Go functions and export them to C.
 This is also how we&rsquo;d typically export methods that we want to be available in our shared library, and we&rsquo;ll see it used for that at the end.
 Due to the way CGO pre-processes source files, we have to keep these functions separate from the C code that uses it.
