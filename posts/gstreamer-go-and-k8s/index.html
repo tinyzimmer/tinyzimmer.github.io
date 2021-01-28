@@ -454,12 +454,7 @@ With that in mind, let&rsquo;s look at the code.</p>
 </code></pre></div><p>With the above all done (and Kubernetes APIs implemented), we go drop some random MKV into our &ldquo;drop/&rdquo; prefix in MinIO and see what gets created.
 The additional fields on the <em>CustomResource</em> for debugging tell the runner (in areas not covered here) to also dump graphs of what the pipeline ends up looking like.</p>
 <p>I recognize you may need to download and zoom to properly view the contents of the image.</p>
-<div class="pipeline-img">
-  <input type="checkbox" id="zoomCheck">
-  <label for="zoomCheck">
-    <img src="/images/gstreamer-pipeline-operator-dot.png">
-  </label>
-</div>
+<p><img src="/images/gstreamer-pipeline-operator-dot.png" alt="pipeline"></p>
 <p>We can see here that the MKV I dropped actually already contained H264 video. So we essentially converted it RAW, straight back into H264, and then just slapped it into a different container.
 But the important thing is that all the linking (both static and dynamic) happened correctly!.</p>
 <p>Well that&rsquo;s all I got for this post. If you found it interesting then stay tuned for my posts in the future, and feel free to hop over to my <a href="https://github.com/tinyzimmer">Github</a> and take a look at this and some of my other GStreamer related projects recently.</p>
