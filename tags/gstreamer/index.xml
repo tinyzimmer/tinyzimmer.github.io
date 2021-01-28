@@ -6,7 +6,17 @@
     <description>Recent content in gstreamer on tinyzimmer&#39;s blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 27 Jan 2021 06:54:29 +0200</lastBuildDate><atom:link href="https://tinyzimmer.github.io/tags/gstreamer/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 28 Jan 2021 19:31:29 +0200</lastBuildDate><atom:link href="https://tinyzimmer.github.io/tags/gstreamer/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Extending GObjects From Go and Making Them Available to C</title>
+      <link>https://tinyzimmer.github.io/posts/exporting-gobject-from-go/</link>
+      <pubDate>Thu, 28 Jan 2021 19:31:29 +0200</pubDate>
+      
+      <guid>https://tinyzimmer.github.io/posts/exporting-gobject-from-go/</guid>
+      <description>When I first started writing my GStreamer bindings for go, I had never done C library bindings before. I had written small programs in C for fun, but most of my professional work was either Go, Python, or just pure BASH. I spent a lot of time over in #gstreamer on freenode probably driving the core developers utterly insane.
+About half way through this adventure, I was working on the bindings for one of the APIs (I don&amp;rsquo;t remember which) and when inquiring further about it slomo informed me &amp;ldquo;that&amp;rsquo;s really only used for plugins.</description>
+    </item>
+    
     <item>
       <title>GStreamer, Go, and Kubernetes</title>
       <link>https://tinyzimmer.github.io/posts/gstreamer-go-and-k8s/</link>

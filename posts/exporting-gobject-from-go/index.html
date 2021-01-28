@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en-us"><head>
+  
+    
+      
+
+
+
+
+
+
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog</title>
+<meta name="title" content="Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog" />
+<meta name="description" content="When I first started writing my GStreamer bindings for go, I had never done C library bindings before. I had written small programs in C for fun, but most of my professional work was either Go, Python, or just pure BASH. I spent a lot of time over in #gstreamer on freenode probably driving the core developers utterly insane.
+About half way through this adventure, I was working on the bindings for one of the APIs (I don&rsquo;t remember which) and when inquiring further about it slomo informed me &ldquo;that&rsquo;s really only used for plugins."> 
+
+
+<link rel="canonical" href="https://tinyzimmer.github.io/posts/exporting-gobject-from-go/" />
+
+
+  
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:description" content="" /> 
+  <meta name="twitter:title" content="Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog" />
+  <meta name="twitter:url" content="https://tinyzimmer.github.io/posts/exporting-gobject-from-go/" />
+  
+  
+  <meta name="twitter:image" content="/images/c-gopher.png" /> 
+
+
+
+  
+  <meta property="og:title" content="Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog" />
+  <meta property="og:description" content="" /> 
+  <meta property="og:site_name" content="tinyzimmer&#39;s blog" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://tinyzimmer.github.io/posts/exporting-gobject-from-go/" />
+  
+  <meta property="og:image" content="/images/c-gopher.png" /> 
+
+
+
+<meta property="article:published_time" content="2021-01-28 19:31:29 &#43;0200 IST" />
+
+
+  
+  
+  <script type="application/ld+json">
+      { 
+          "@context": "http://schema.org", 
+          "@type": "WebSite", 
+          "url": "https://tinyzimmer.github.io/", 
+          "name": "Extending GObjects From Go and Making Them Available to C",
+          "author": {
+            "@type": "Person",
+            "name": "Avi Zimmerman"
+          },
+          
+          "image": "/images/c-gopher.png",
+          "description": "A blog where I document my journeys through automation and code",
+          
+          "sameAs" : [
+            
+            
+              "https://github.com/tinyzimmer"
+            ]
+          
+        }
+      </script>
+  
+
+
+    
+    <meta name="generator" content="Hugo 0.81.0-DEV" />
+  
+  
+  
+  
+  
+  <link rel="stylesheet" href="/assets/css/main.min.aa781b4a2264b85cc06c9b412f6c205b64d0ef08c1885ae34e371912f036d991.css" integrity="sha256-qngbSiJkuFzAbJtBL2wgW2TQ7wjBiFrjTjcZEvA22ZE=" crossorigin="anonymous">
+  
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
+  
+  <link rel=apple-touch-icon sizes=180x180 href=https://tinyzimmer.github.io//assets/favicon/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=https://tinyzimmer.github.io//assets/favicon/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=https://tinyzimmer.github.io//assets/favicon/favicon-16x16.png><link rel=manifest href=https://tinyzimmer.github.io//assets/favicon/site.webmanifest><link rel=mask-icon href=https://tinyzimmer.github.io//assets/favicon/safari-pinned-tab.svg color=#7817c4><link rel=icon href=https://tinyzimmer.github.io//assets/favicon/favicon.ico type=image/x-icon><link rel="shortcut icon" href=https://tinyzimmer.github.io//assets/favicon/favicon.ico type=image/x-icon><link rel=stylesheet href=/css/main.css><meta name=apple-mobile-web-app-title content="Vibrant Shadows Theme"><meta name=application-name content="Vibrant Shadows Theme"><meta name=msapplication-TileColor content="#ffffff"><meta name=theme-color content="#ffffff">
+  
+  
+  
+  <meta name="theme-color" content="#fff6f8">
+  
+  <meta name="msapplication-navbutton-color" content="#fff6f8">
+  
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  
+</head>
+<body><header>
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top flex-column">
+    <div class="container-fluid">
+      
+      <a class="navbar-brand rounded px-3" href="https://tinyzimmer.github.io/"><span class="text-nav"><span class="brand">&nbsp;&nbsp;&nbsp;tinyzimmer&#39;s blog</span></span></a>
+      
+      
+        <a class="navbar-toggler border-0 bg-nav p-2" role="button" href="#" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="text-clr2">&#9776;</span>
+        </a>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav mr-md-auto">
+             
+            
+              
+                <li class="nav-item mx-1 my-2">
+                  <a class="btn bg-nav text-clr1" href="/about/">About</a>
+                </li>
+              
+            
+          </ul>
+          
+            
+              <div class="navbar-navalign-items-center ml-md-auto my-2 bg-nav rounded p-1 pr-2">
+                
+                  
+                    <a class="ml-1" href="https://github.com/tinyzimmer"><span class="fab fa-github" aria-label="Join us on Github"></span></a>
+                  
+                
+              </div>
+            
+          
+        </div>
+      
+    </div>
+    
+  </nav>
+</header>
+<div id="content">
+<div class="container-fluid bg-clr1 text-nav text-center pb-3 pt-4 position-relative shadow-sm">
+  <div style="height:3.5rem;"></div>
+  <h1>Extending GObjects From Go and Making Them Available to C</h1>
+  
+</div>
+<div class="container bg-nav py-3">
+  <hr>
+<p>When I first started writing my <a href="https://github.com/tinyzimmer/go-gst">GStreamer bindings for go</a>, I had never done C library bindings before.
+I had written small programs in C for fun, but most of my professional work was either Go, Python, or just pure BASH.
+I spent a lot of time over in #gstreamer on <a href="https://freenode.net/">freenode</a> probably driving the core developers utterly insane.</p>
+<p>About half way through this adventure, I was working on the bindings for one of the APIs (I don&rsquo;t remember which) and when inquiring further about it slomo informed me &ldquo;that&rsquo;s really only used for plugins.&rdquo;
+What slomo might not have realized at the time was that I took this as a direct <strong>challenge</strong>. And he was in for a much more difficult time shaking me off.</p>
+<p>I really had no need for plugins in my use-case for the bindings at that moment, so a month or two went by before I revisited the idea. Two or three COVID lockdowns later, I put my head down and got to work.
+I quickly realized I had bitten off more than I could chew, and it was then that slomo directed me to his incredible post about <a href="https://coaxion.net/blog/2017/09/exporting-a-gobject-c-api-from-rust-code-and-using-it-from-c-python-javascript-and-others/">Exporting GObject C APIs from Rust</a>.
+If you find this topic interesting, I highly recommend giving it a read. I do go over <em>some</em> of the concepts covered in that article, but no where near as in-depth.
+While I did not have access to all the same language features as Rust, I used the article as a sort of flexible blueprint while I ventured into making it possible from Go.</p>
+<p>This article will end up being very similar in some contexts, and I&rsquo;ll do my best to avoid completely plagiarizing all the work done there. We&rsquo;ll walk through some of the core concepts, how I translated them
+into gocode, and then we can look at a working implementation.</p>
+<hr>
+<ul>
+<li>
+<p><a href="#brief-gobject-introduction">Brief GObject Introduction</a></p>
+</li>
+<li>
+<p><a href="#registering-a-gtype-for-an-arbitrary-go-object">Registering a GType for an Arbitrary Go Object</a></p>
+<ul>
+<li>
+<p><a href="#defining-the-first-interface">Defining the First Interface</a></p>
+</li>
+<li>
+<p><a href="#quick-primer-on-magic-methods-in-go">Quick Primer on Magic Methods in Go</a></p>
+</li>
+<li>
+<p><a href="#the-extendable-interface">The Extendable Interface</a></p>
+</li>
+<li>
+<p><a href="#registering-the-type">Registering the Type</a></p>
+</li>
+<li>
+<p><a href="#back-to-that-initclass-function">Back to that InitClass Function</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p><a href="#registering-ginterfaces-to-the-gtype">Registering GInterfaces to the GType</a></p>
+</li>
+<li>
+<p><a href="#registering-the-plugin-with-gstreamer">Registering the Plugin with GStreamer</a></p>
+</li>
+</ul>
+<hr>
+<h2 id="brief-gobject-introduction">Brief GObject Introduction</h2>
+<p>I really can&rsquo;t say it better than slomo&rsquo;s article linked above myself:</p>
+<blockquote>
+<p>&ldquo;GObject is a C library that allows to write object-oriented, cross-platform APIs in C (which does not have support for that built-in), and provides a very expressive runtime type system with many features known from languages like Java, C# or C++. It is also used by various C libraries, most notably the cross-platform <a href="https://www.gtk.org/">GTK UI toolkit</a> and the <a href="https://gstreamer.freedesktop.org/">GStreamer multimedia framework</a>. GObject also comes with strong conventions about how an API is supposed to look and behave, which makes it relatively easy to learn new GObject based APIs as compared to generic C libraries that could do anything unexpected.&rdquo;</p>
+</blockquote>
+<p>For a little more detail on how this works in the context of GStreamer plugins, each plugin is simply a GObject that optionally (though required if you want actual functionality) extends on base objects declared and implemented in the core API.
+The plugins are compiled to shared libraries (<code>.so</code> files) and provide metadata from exported symbols that follow a naming convention based on that of the plugin itself.
+That metadata, among other things, provides a pointer to the method GStreamer can call to initialize instances of the plugin&rsquo;s element through the GObject type system.</p>
+<p>Go already lets us compile to C shared libraries by using <code>go build -buildmode c-shared</code>.  This outputs both an <code>.so</code> file that can be loaded dynamically, and a header file that can be included by C applications wanting to use the library.
+The goal was to leverage this and in the end be able to provide an element to GStreamer from gocode with something like this:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;github.com/tinyzimmer/go-gst/gst&#34;</span>
+	<span style="color:#e6db74">&#34;github.com/tinyzimmer/go-gst/gst/base&#34;</span>
+)
+
+<span style="color:#75715e">// The metadata for this plugin
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">pluginMeta</span> = <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">PluginMetadata</span>{
+	<span style="color:#a6e22e">MajorVersion</span>: <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">VersionMajor</span>,
+	<span style="color:#a6e22e">MinorVersion</span>: <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">VersionMinor</span>,
+	<span style="color:#a6e22e">Name</span>:         <span style="color:#e6db74">&#34;myawesomeplugin&#34;</span>,
+	<span style="color:#a6e22e">Description</span>:  <span style="color:#e6db74">&#34;My awesome GStreamer plugin written in go&#34;</span>,
+	<span style="color:#a6e22e">Version</span>:      <span style="color:#e6db74">&#34;v0.0.1&#34;</span>,
+	<span style="color:#a6e22e">License</span>:      <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">LicenseLGPL</span>,
+	<span style="color:#a6e22e">Source</span>:       <span style="color:#e6db74">&#34;go-gst&#34;</span>,
+	<span style="color:#a6e22e">Package</span>:      <span style="color:#e6db74">&#34;examples&#34;</span>,
+	<span style="color:#a6e22e">Origin</span>:       <span style="color:#e6db74">&#34;https://github.com/tinyzimmer/go-gst&#34;</span>,
+	<span style="color:#a6e22e">ReleaseDate</span>:  <span style="color:#e6db74">&#34;2021-01-04&#34;</span>,
+	<span style="color:#75715e">// The init function is called by GStreamer to register elements provided by the plugin.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Init</span>: <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">plugin</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">Plugin</span>) <span style="color:#66d9ef">bool</span> {
+		<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">RegisterElement</span>(
+			<span style="color:#a6e22e">plugin</span>,
+			<span style="color:#75715e">// The name of the element
+</span><span style="color:#75715e"></span>			<span style="color:#e6db74">&#34;goplugin&#34;</span>,
+			<span style="color:#75715e">// The rank of the element
+</span><span style="color:#75715e"></span>			<span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">RankNone</span>,
+			<span style="color:#75715e">// The GoElement implementation for the element
+</span><span style="color:#75715e"></span>			<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">myGoObject</span>{},
+			<span style="color:#75715e">// The base subclass this element extends
+</span><span style="color:#75715e"></span>			<span style="color:#a6e22e">base</span>.<span style="color:#a6e22e">ExtendsBaseSrc</span>,
+		)
+	},
+}
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">myGoObject</span> <span style="color:#66d9ef">struct</span>{}
+
+<span style="color:#75715e">// ...
+</span><span style="color:#75715e">// VMethod implementations to override from the GstBaseSrc type
+</span><span style="color:#75715e">// written entirely in Go.
+</span><span style="color:#75715e"></span>
+</code></pre></div><hr>
+<h2 id="registering-a-gtype-for-an-arbitrary-go-object">Registering a GType for an Arbitrary Go Object</h2>
+<p>All of the code referenced throughout this artcle can be found in its finished form across (primarily) <a href="https://github.com/tinyzimmer/go-glib">go-glib</a> and <a href="https://github.com/tinyzimmer/go-gst">go-gst</a>.</p>
+<p>When we call GStreamer&rsquo;s <em>actual</em> <code>gst_element_register</code> API, it turns to the GObject type system to build and interact with instances of our object.
+So our first task will be registering our Go type with GObject.
+We are going to be confronted with several limitations in CGO along the way that I&rsquo;ll briefly summarize here for reference as they become relevant later.</p>
+<ul>
+<li>Go does not have a pre-processor
+<ul>
+<li>C relies heavily on the use of macros, which are not actual &ldquo;instructions&rdquo; in the conventional sense. Instead they tell the compiler to &ldquo;template&rdquo; out symbols and instructions before compilation.</li>
+<li>We have <code>go generate</code> which we will leverage later, but it is just a code generator. Users cannot use them as code in the same way as macros. They are expected to be executed beforehand by the user independently from the compiler.</li>
+</ul>
+</li>
+<li>In addition to not having our own macros, we can&rsquo;t use C macros from Go code (though sometimes we can get away with this depending on what the macro actually does).</li>
+<li>Go does not track any memory allocated by C.
+<ul>
+<li>Because of this, we have to work against the garbage collector. Just because our GObject is present in the C &ldquo;runtime&rdquo; does not mean the Go runtime knows it needs to keep the Go instance around.</li>
+</ul>
+</li>
+<li>Go pointers cannot be passed as arguments to C code.
+<ul>
+<li>This includes functions. C code cannot directly execute anonymous Go functions or closures. They have to be statically defined.</li>
+</ul>
+</li>
+<li>C cannot use types and structures defined in Go</li>
+</ul>
+<p>We&rsquo;ll go a little more in-depth into these issues, and how they were overcome, as we build out the ability to create a plugin in Go.</p>
+<h3 id="defining-the-first-interface">Defining the First Interface</h3>
+<p>Two features of GObjects that we will need to implement in Go-land are <strong>Inheritance</strong> and the GObject concept of <strong>Interfaces</strong>.
+To explain in a little more detail with context, we want our Go object to be able to do the following:</p>
+<ul>
+<li>Extend and/or inherit the capabilities of a GObject and its methods (e.g. a GstElement)</li>
+<li>Implement and declare GInterfaces (e.g. a GstUriHandler)</li>
+<li>Not die trying</li>
+</ul>
+<p>The first Go interface we will lay down for this is the <code>GoObjectSubclass</code>.
+In GObject world the <code>GObjectClass</code> is the structure that declares the properties and methods for the object.
+It is the base class that all other subclasses must derive from, and the structure through which we inform the type system how to build our object as well as our inheritance and implementations.
+We don&rsquo;t have a need to separate the class from the object in Go land, so we will be able to lay these interfaces down directly on top of each other.
+It will be the user&rsquo;s responsibility to implement these interfaces in order to provide the necessary functionality and signal to the bindings what they are capable of.
+The type system calls into these methods at the appropriate time during type registration and instantiation.</p>
+<p>For starters we&rsquo;ll want the user to implement at a minimum two methods for us (and we&rsquo;ll show a little more depth on them later):</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// GoObjectSubclass is an interface that abstracts on the GObjectClass. It is the minimum that should be implemented
+</span><span style="color:#75715e">// by Go types that get registered as GTypes.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">GoObjectSubclass</span> <span style="color:#66d9ef">interface</span> {
+    <span style="color:#75715e">// We&#39;ll be using the go object provided to us at registration, not as the object itself, but rather as an 
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// interface for creating new instances of the object when needed.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">New</span>() <span style="color:#a6e22e">GoObjectSubclass</span>
+	<span style="color:#75715e">// ClassInit will be called on the object after it is registered with the type system. This is when the element
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// will install its properties, methods, and any other metadata.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">ClassInit</span>(<span style="color:#f92672">*</span><span style="color:#a6e22e">ObjectClass</span>)
+}
+</code></pre></div><p>The <code>*ObjectClass</code> passed to <code>ClassInit</code> above will be the go-bound representation of the GObjectClass that gets allocated for us during class initialization.
+It is the structure through which we&rsquo;ll be able to declare our capabilities with the type system.</p>
+<h3 id="quick-primer-on-magic-methods-in-go">Quick Primer on Magic Methods in Go</h3>
+<p>The next interface we will need is not for the user to implement, persay, but rather for the developer binding whatever library they are working on to implement.
+We mentioned briefly before about how the GObject system provides method and class inheritance, but this is a feature we don&rsquo;t have in Go strictly speaking.
+We do have the ability to declare unnamed fields in a structure and inherit &ldquo;magic methods&rdquo; from them, but that is not quite the same thing.
+Here is a short snippet to explain this concept in a little more detail.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+)
+
+<span style="color:#75715e">// A structure providing a single Do() method
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">StructA</span> <span style="color:#66d9ef">struct</span>{}
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">StructA</span>) <span style="color:#a6e22e">Do</span>() { <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;Hello World&#34;</span>) }
+
+<span style="color:#75715e">// Another structure that contains a single unnamed member of StructA
+</span><span style="color:#75715e">// This is NOT inheritance even though it may look and seem like it.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">StructB</span> <span style="color:#66d9ef">struct</span>{ <span style="color:#f92672">*</span><span style="color:#a6e22e">StructA</span> }
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#75715e">// Create an instance of StructA and call Do()
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">a</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">StructA</span>{}
+	<span style="color:#a6e22e">a</span>.<span style="color:#a6e22e">Do</span>()
+    <span style="color:#75715e">// &gt; Hello World
+</span><span style="color:#75715e"></span>    
+    <span style="color:#75715e">// Create an instance of StructB setting it&#39;s StructA member
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// to the one we created above.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">StructB</span>{<span style="color:#a6e22e">a</span>}
+    <span style="color:#75715e">// Because of the single unnamed field in our structure, Go is nice
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// and gives us a &#34;magic method&#34; of Do() that calls up to the StructA
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// implementation. But we aren&#39;t actually &#34;inheriting&#34; this method. 
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// The compiler is just giving us a shortcut to it. And if we extend our
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// StructB further with other structures, the compiler will take our
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// shortcuts away.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">Do</span>()
+    <span style="color:#75715e">// &gt; Hello World
+</span><span style="color:#75715e"></span>}
+
+</code></pre></div><p>Now let&rsquo;s look at the same thing but with <code>StructB</code> defining its own <code>Do()</code> method.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+)
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">StructA</span> <span style="color:#66d9ef">struct</span>{}
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">StructA</span>) <span style="color:#a6e22e">Do</span>() { <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;Hello World&#34;</span>) }
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">StructB</span> <span style="color:#66d9ef">struct</span>{ <span style="color:#f92672">*</span><span style="color:#a6e22e">StructA</span> }
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">StructB</span>) <span style="color:#a6e22e">Do</span>() { <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;World Hello&#34;</span>) }
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+    <span style="color:#75715e">// Create an instance of StructA and call Do()
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">a</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">StructA</span>{}
+	<span style="color:#a6e22e">a</span>.<span style="color:#a6e22e">Do</span>()
+    <span style="color:#75715e">// &gt; Hello World
+</span><span style="color:#75715e"></span>    
+    <span style="color:#75715e">// Create an instance of StructB setting it&#39;s StructA member
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// to the one we created above.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">StructB</span>{<span style="color:#a6e22e">a</span>}
+    <span style="color:#75715e">// Here we call StructB&#39;s implementation of Do. Which is not an override
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// of StructA&#39;s, but rather an entirely new method ONLY on StructBs.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">Do</span>()
+    <span style="color:#75715e">// &gt; World Hello
+</span><span style="color:#75715e"></span>
+    <span style="color:#75715e">// We did not actually override the Do() method. We have an unnamed
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// field of type StructA that automatically took on the name of the
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// struct itself. And we have access to all of its properties as we
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// do any other field in our struct.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">StructA</span>.<span style="color:#a6e22e">Do</span>()
+    <span style="color:#75715e">// &gt; Hello World
+</span><span style="color:#75715e"></span>}
+</code></pre></div><p>Where this is not compatible with how GObject operates, is in how the methods on these various structures get addressed.
+In C code using the GType system, it is common to take a pointer to an object that extends on several others, and coerce it to the implementation you are working with at that point in time.
+But that&rsquo;s not the same as what Go is doing above with its magic methods. To try to break this down a little bit more:</p>
+<p><em>None of what I&rsquo;m about to describe is even possible, but if it were the conversation would look a little like this</em></p>
+<ul>
+<li>Go says &ldquo;Here take this <code>StructB</code> instance that extends on <code>StructA</code> but does <code>Do</code> its own way&rdquo;</li>
+<li>C says &ldquo;Cool, I have this method here that needs a <code>StructA</code> but I&rsquo;ll want to <code>Do</code> your way&rdquo;</li>
+<li>Go says &ldquo;Well crap, I can <em>give</em> you <code>StructA</code>, but not like you want it. Here take my member&rdquo;</li>
+<li>C calls <code>Do()</code> but does not call the <code>StructB</code> <code>Do</code> like it wanted to.</li>
+</ul>
+<p>In the end when working strictly among code written in Go, you can pretend this is inheritance and parenting and it works more or less the same way in most use-cases.
+But for what we need to build out here, we can&rsquo;t leverage any of the core elements of the Go type system. We&rsquo;ll need to implement the behavior we want ourselves, and unfortunately it&rsquo;s going to be a bit ugly.
+But the goal here is not for the bindings to avoid being ugly and unsafe. It&rsquo;s for the <em>user</em> to not have to write ugly and unsafe code.</p>
+<h3 id="the-extendable-interface">The Extendable Interface</h3>
+<p>At the end of the day, it is not so much code written in Go that needs to know about all of these &ldquo;extendable&rdquo; properties in other Go objects.
+Go is statically typed, and every structure&rsquo;s exposed properties and methods are documented and available to the caller.
+What we do need to do, however, is let C know what&rsquo;s what. And for that, I started with a new Go interface I called an <code>Extendable</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Extendable is an interface to be implemented by libraries binding other APIs. If a bound object
+</span><span style="color:#75715e">// builds upon the GObject system, the developer can also provide an implementation of this interface
+</span><span style="color:#75715e">// to be used during registration of a Go type. It exposes properties needed by the type registration
+</span><span style="color:#75715e">// system about the object being extended, and a method that should take some Go object implementation
+</span><span style="color:#75715e">// and link methods to the GObject subclass&#39;s vmethods at runtime.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Extendable</span> <span style="color:#66d9ef">interface</span> {
+	<span style="color:#75715e">// Type should return the GType of the extended object
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Type</span>() <span style="color:#a6e22e">Type</span>  <span style="color:#75715e">// Type is another type provided by the go-glib bindings that wraps the GType
+</span><span style="color:#75715e"></span>    
+    <span style="color:#75715e">// ClassSize and InstanceSize should return the sizes for the structures belonging to the extended
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// object. The type system will use these values to allocate memory for our object. This will be 
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// extended on a bit later.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">ClassSize</span>() <span style="color:#66d9ef">int64</span>
+	<span style="color:#a6e22e">InstanceSize</span>() <span style="color:#66d9ef">int64</span>
+    
+    <span style="color:#75715e">// InitClass will be called with the C pointer to the GObjectClass being created and a reference
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// implementation of the extending Go object. This is not the same Go object that will be used by
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// a calling application later on, but it CAN be used to inspect the methods implemented by the
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// object. We&#39;ll have some fancy trickery later on around how we deal with matching an instance of
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// a GObject at any point in time to the correct instance of the object from the Go runtime.
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// Keep in mind, as we said earlier, C knows nothing of Go pointers, and Go knows nothing of C pointers.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">InitClass</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>, <span style="color:#a6e22e">GoObjectSubclass</span>)
+}
+</code></pre></div><p>The base object that all other objects extend from is the <code>GObject</code>.
+So, the bindings will declare two additional items to provide that inheritance to the user.</p>
+<ul>
+<li>A &ldquo;reference&rdquo; interface containing the Go representation of the overridable methods (a little more on why I call this the &ldquo;reference&rdquo; interface later).</li>
+<li>An implementation of the <code>Extendable</code> interface that can be used with Go code registering a new <code>GType</code>.</li>
+</ul>
+<p>First we&rsquo;ll define a &ldquo;reference&rdquo; interface for the base extendable GType, the <code>GObject</code>. These method signatures match the spirit of their counterparts in the underlying <code>GObjectClass</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// GoObject is an interface that abstracts on the GObject. In almost all cases at least SetProperty and GetProperty
+</span><span style="color:#75715e">// should be implemented by objects built from the go bindings. The Object passed to the following methods is the 
+</span><span style="color:#75715e">// bound C GObject that corresponds to this instance.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">GoObject</span> <span style="color:#66d9ef">interface</span> {
+   <span style="color:#75715e">// SetProperty should set the value of the property with the given id. We&#39;ll explain properties a little more in-depth later on.
+</span><span style="color:#75715e"></span>   <span style="color:#a6e22e">SetProperty</span>(<span style="color:#a6e22e">self</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Object</span>, <span style="color:#a6e22e">id</span> <span style="color:#66d9ef">uint</span>, <span style="color:#a6e22e">value</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Value</span>)
+   <span style="color:#75715e">// GetProperty should retrieve the value of the property with the given id.
+</span><span style="color:#75715e"></span>   <span style="color:#a6e22e">GetProperty</span>(<span style="color:#a6e22e">self</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Object</span>, <span style="color:#a6e22e">id</span> <span style="color:#66d9ef">uint</span>) <span style="color:#f92672">*</span><span style="color:#a6e22e">Value</span>
+   <span style="color:#75715e">// Constructed is called when the Object has finished being set up.
+</span><span style="color:#75715e"></span>   <span style="color:#a6e22e">Constructed</span>(<span style="color:#a6e22e">self</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Object</span>)
+}
+</code></pre></div><p>What&rsquo;s important to note right now, is that not all of these methods are required to be overridden. When the user chooses not to override them, we want to inherit from the parent class.
+If we tried to take a Go object that ONLY implements <code>SetProperty</code> and coerce it to this interface hoping to get some parent implementation or generic error for everything else, we&rsquo;d get a runtime panic.
+In the same respect, we can&rsquo;t take some arbitrary pointer to a go structure, and coerce it to a structure it isn&rsquo;t.</p>
+<p>So when setting up the <code>GObjectClass</code> we&rsquo;ll have to cherry pick only the methods that the Go object chose to implement.
+It&rsquo;s for this reason that I refer to this as the <em>reference</em> interface. The bindings aren&rsquo;t actually going to use it in practice and it primarily serves as documentation for the user.
+There are likely other ways this could have been implemented, but ultimately I think the amount of boilerplate required would have been the same.</p>
+<p>Next we need the <code>Extendable</code> implementation that can be paired with a Go object implementing parts of this interface.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">/*
+</span><span style="color:#75715e">#include &#34;glib.go.h&#34;
+</span><span style="color:#75715e">// C prelude...
+</span><span style="color:#75715e">*/</span>
+<span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;C&#34;</span>
+
+<span style="color:#75715e">// ExtendsObject signifies a GoElement that extends a GObject. It is the base Extendable
+</span><span style="color:#75715e">// that all other implementations should derive from.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">ExtendsObject</span> <span style="color:#a6e22e">Extendable</span> = <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">extendObject</span>{}
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">extendObject</span> <span style="color:#66d9ef">struct</span>{}
+
+<span style="color:#75715e">// Type returns the GType for a GObject
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">e</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">extendObject</span>) <span style="color:#a6e22e">Type</span>() <span style="color:#a6e22e">Type</span>          { <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">Type</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">g_object_get_type</span>()) }
+
+<span style="color:#75715e">// We won&#39;t actually be creating our own C structure to store fields relating to the
+</span><span style="color:#75715e">// Go object. Rather we will utilize the private data already included in the GObject
+</span><span style="color:#75715e">// later on. So for the size of our structures, we just declare those of the structures
+</span><span style="color:#75715e">// we descend from.
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// In CGO, the size of any structure or type can be obtained with C.sizeof_name
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">e</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">extendObject</span>) <span style="color:#a6e22e">ClassSize</span>() <span style="color:#66d9ef">int64</span>    { <span style="color:#66d9ef">return</span> int64(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">sizeof_GObjectClass</span>) }
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">e</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">extendObject</span>) <span style="color:#a6e22e">InstanceSize</span>() <span style="color:#66d9ef">int64</span> { <span style="color:#66d9ef">return</span> int64(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">sizeof_GObject</span>) }
+
+
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">e</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">extendObject</span>) <span style="color:#a6e22e">InitClass</span>(<span style="color:#a6e22e">klass</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>, <span style="color:#a6e22e">elem</span> <span style="color:#a6e22e">GoObjectSubclass</span>) {
+    <span style="color:#75715e">// Set up the GObjectClass at klass with the methods provided by elem.
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// We&#39;ll disect this piece more in a bit.
+</span><span style="color:#75715e"></span>}
+</code></pre></div><p>When another binding library wants to extend on the <code>ExtendsObject</code> they can do something like this:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">ExtendsAnotherObject</span> <span style="color:#a6e22e">Extendable</span> = <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">extendsAnotherObject</span>{<span style="color:#a6e22e">ExtendsObject</span>}
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">extendsAnotherObject</span> <span style="color:#66d9ef">struct</span> { <span style="color:#a6e22e">parent</span> <span style="color:#a6e22e">ExtendsObject</span> }
+
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">e</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">extendsAnotherObject</span>) <span style="color:#a6e22e">InitClass</span>(<span style="color:#a6e22e">klass</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>, <span style="color:#a6e22e">elem</span> <span style="color:#a6e22e">GoObjectSubclass</span>) {
+    <span style="color:#75715e">// Call up to the parent InitClass
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">e</span>.<span style="color:#a6e22e">parent</span>.<span style="color:#a6e22e">InitClass</span>(<span style="color:#a6e22e">klass</span>, <span style="color:#a6e22e">elem</span>)
+
+    <span style="color:#75715e">// Continue class initialization
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// ...
+</span><span style="color:#75715e"></span>}
+</code></pre></div><p>We&rsquo;ll continue talking about the <code>InitClass</code> method more later after we&rsquo;ve registered the GType.</p>
+<h3 id="registering-the-type">Registering the Type</h3>
+<p>At this point we&rsquo;ve laid down enough boilerplate to register the type.
+We still have not covered how we handle objects implementing a <code>GInterface</code>, but this is not required to get started with what we have so far.
+We&rsquo;ll come back and tweak this a little more later once we add the support for Interfaces.</p>
+<p>First we&rsquo;ll declare some global variables to help us with this process and a new structure where we will store data
+about the type we are registering.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Declare a global map where we will track Go types that have already been registered
+</span><span style="color:#75715e">// to a GType. This could also be accomplished with a sync.Once, but at the time I wanted
+</span><span style="color:#75715e">// the ability to easily grab a GType without having to call into the C system with some
+</span><span style="color:#75715e">// instantiated object.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">registeredTypes</span> <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#a6e22e">Type</span>
+
+<span style="color:#75715e">// Declare a mutex so we do not try to register multiple types at the same time, and potentially
+</span><span style="color:#75715e">// corrupt our map.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">registerMutex</span> <span style="color:#a6e22e">sync</span>.<span style="color:#a6e22e">Mutex</span>
+
+<span style="color:#75715e">// This is a structure where we will store data to be given back to us by the GObject callbacks. 
+</span><span style="color:#75715e">// We&#39;ll explain this a little more below.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">classData</span> <span style="color:#66d9ef">struct</span> {
+	<span style="color:#a6e22e">elem</span> <span style="color:#a6e22e">GoObjectSubclass</span>
+	<span style="color:#a6e22e">ext</span>  <span style="color:#a6e22e">Extendable</span>
+}
+</code></pre></div><p>The next thing we need to build out for the user is the <a href="https://developer.gnome.org/gobject/stable/gobject-Type-Information.html#GTypeInfo">GTypeInfo</a> to register
+with the type system.
+This structure contains a series of callbacks that get executed during class and instance initialization and finalization.
+We won&rsquo;t be needing all of the initializers, or any of the finalizers, primarily because we will be managing most of our Go memory via the Go runtime and its finalizers.</p>
+<p>What we&rsquo;d like to do is define the necessary callbacks in Go such that they can interact with the appropriate Go types, and use those to initialize what&rsquo;s needed for the Go runtime.
+It&rsquo;s here where we begin to run into some of our challenges with CGO. Remember when we said that Go pointers cannot be passed as arguments to C code?
+Well that would seem to be a nail in the coffin for accomplishing this but we do have some workarounds.</p>
+<p>The first thing CGO lets us do that we can use to get over this hurdle, is in a separate file define Go functions and export them to C.
+This is also how we&rsquo;d typically export methods that we want to be available in our shared library, and we&rsquo;ll see it used for that at the end.
+Due to the way CGO pre-processes source files, we have to keep these functions separate from the C code that uses it.
+How we use them from C code we can get to after, but the way you do this is pretty simple:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">glib</span>
+
+<span style="color:#75715e">// #include &lt;glib/glib.h&gt;
+</span><span style="color:#75715e"></span><span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;C&#34;</span>
+
+<span style="color:#75715e">//export myGoCallback
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">myGoCallback</span>(<span style="color:#a6e22e">someCPtr</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>) {
+    <span style="color:#a6e22e">someGoFunction</span>()
+    <span style="color:#75715e">// ...
+</span><span style="color:#75715e"></span>}
+</code></pre></div><p>The <code>export</code> comment above the function along with the &ldquo;C&rdquo; import, tells the compiler to export that method as a C symbol.
+We can also use this function from our own C code <em>within</em> the package it&rsquo;s defined.
+We just can&rsquo;t use the function itself as a value for a callback, nor can we reference it directly from the Go runtime a la <code>C.myGoCallback</code>.
+To get around this limitation, we can import the Go function into our own C code, and define a C function that simply calls back to the Go function with the parameters it&rsquo;s given.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;glib/glib.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">myGoCallback</span> (gpointer somePtr);
+
+<span style="color:#66d9ef">void</span> 
+<span style="color:#a6e22e">myCGOCallback</span> (gpointer somePtr) {
+    myGoCallback(somePtr);
+}
+</code></pre></div><p>Now from our Go code we can address a callback to <code>C.myCGOCallback</code> and our callback defined in Go will be invoked with the parameters it receives.
+We&rsquo;ll end up using this idiom <em>a lot</em> since the GObject system, as well as most derivative libraries, relies heavily on the use of callbacks.</p>
+<p>Another common convention in callbacks when used by the GObject libraries is to pass optional userdata to the user-defined callbacks.
+This is useful for many things. For example, if what we want the bindings to <em>actually</em> do is call into some anonymous function or closure the user has provided us.
+Or, which is about to be the case for us, we want to be able to reference some structure we allocated in Go before the callback was invoked.
+We&rsquo;ve overcome our issue with using Go functions as callbacks, but we have now bumped into another one of our CGO limitations, further limited by how we just overcame the last one.</p>
+<p>We cannot pass go pointers to C functions, but we just had to declare a C callback to even get to our Go callback.
+So now, we can&rsquo;t pass this arbitrary Go data to our callback because it is defined in C.</p>
+<p>On top of this, Go does not track any memory allocated by C.
+That means we can&rsquo;t just take the address of the go data, give it to C, and hope the object hasn&rsquo;t been garbage collected when the callback actually gets executed.
+Chances are eventually, we&rsquo;d wind up with a pointer to nowhere when we actually want to use it.</p>
+<p>Thankfully, and as a testament to how <strong>big</strong> things can come in <em>small</em> packages, there is mattn&rsquo;s <a href="https://github.com/mattn/go-pointer">go-pointer</a> package for just this purpose.
+What this package does is provide us with three very simple methods for handling Go structures that we want to pass back and forth from C.</p>
+<ul>
+<li><code>Save(interface{})</code>: This method allocates a <em>dummy</em> C pointer, saves it to an internal map of pointers to go interfaces along with the given go value, and returns the <em>dummy</em> C pointer for consumption.
+<ul>
+<li>Saving a reference to the interface in the global Go runtime keeps the garbage collector from attempting to dispose of it.</li>
+</ul>
+</li>
+<li><code>Restore(unsafe.Pointer)</code>: This method will take a <em>dummy</em> C pointer, and return the Go interface that matches it in the internal map.</li>
+<li><code>Unref(unsafe.Pointer)</code>: Frees the <em>dummy</em> C pointer and removes the key from the internal map (thus letting the Go garbage collector scrape it up)</li>
+</ul>
+<p>With all of the above accounted for and taken care of, we can now register the Go type to the GType system.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">import</span> <span style="color:#a6e22e">gopointer</span> <span style="color:#e6db74">&#34;github.com/mattn/go-pointer&#34;</span>
+
+<span style="color:#75715e">// RegisterGoType will register a given interface extending the Extendable with the given name.
+</span><span style="color:#75715e">// The GType that gets registered to the object is returned.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">RegisterGoType</span>(<span style="color:#a6e22e">name</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">elem</span> <span style="color:#a6e22e">GoObjectSubclass</span>, <span style="color:#a6e22e">extendable</span> <span style="color:#a6e22e">Extendable</span>) <span style="color:#a6e22e">Type</span> {
+	<span style="color:#a6e22e">registerMutex</span>.<span style="color:#a6e22e">Lock</span>()
+    <span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">registerMutex</span>.<span style="color:#a6e22e">Unlock</span>()
+    
+    <span style="color:#75715e">// If we&#39;ve already registered this type, return the Type we have
+</span><span style="color:#75715e"></span>	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">registered</span>, <span style="color:#a6e22e">ok</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">registeredTypes</span>[<span style="color:#a6e22e">reflect</span>.<span style="color:#a6e22e">TypeOf</span>(<span style="color:#a6e22e">elem</span>).<span style="color:#a6e22e">String</span>()]; <span style="color:#a6e22e">ok</span> {
+		<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">registered</span>
+    }
+    
+    <span style="color:#75715e">// Create a dummy C pointer pointing to the information about the Go object
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// and the go implementations for the Objects it intends to extend.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">//
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// We&#39;ll retrieve this pointer during class_init later.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Save</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">classData</span>{
+		<span style="color:#a6e22e">elem</span>: <span style="color:#a6e22e">elem</span>,
+		<span style="color:#a6e22e">ext</span>:  <span style="color:#a6e22e">extendable</span>,
+	})
+
+    <span style="color:#75715e">// Allocate a new GTypeInfo. We can free this immediately since the type
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// system remembers the pointers to the methods it needs.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">typeInfo</span> <span style="color:#f92672">:=</span> (<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GTypeInfo</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">malloc</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">sizeof_GTypeInfo</span>))
+	<span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">free</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">typeInfo</span>))
+
+    <span style="color:#75715e">// These are the fields and vmethods in the type information that
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// we are not concerned with. Set them to their zero or nil values.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">base_init</span> = <span style="color:#66d9ef">nil</span>
+	<span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">base_finalize</span> = <span style="color:#66d9ef">nil</span>
+	<span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">class_finalize</span> = <span style="color:#66d9ef">nil</span>
+	<span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">n_preallocs</span> = <span style="color:#ae81ff">0</span>
+	<span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">value_table</span> = <span style="color:#66d9ef">nil</span>
+
+    <span style="color:#75715e">// As we mentioned earlier, there isn&#39;t a need to store much information
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// in the C object that will represent our Go type. So we take the size
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// properties from the Extendable and use those, assuming we, at the very
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// least, need space for all the vmethods provided by the extended class.
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">//
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// Libraries that want to provide GObjects AND methods for bindings in other
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// languages will have to both implement their Extendable as well as define
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// the neccessary C structures for the Type system and those languages to infer
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// from. These sizes would reflect the size of those C structures.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">class_size</span> = <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gushort</span>(<span style="color:#a6e22e">extendable</span>.<span style="color:#a6e22e">ClassSize</span>())
+	<span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">instance_size</span> = <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gushort</span>(<span style="color:#a6e22e">extendable</span>.<span style="color:#a6e22e">InstanceSize</span>())
+
+    <span style="color:#75715e">// Set the class_init function to our go classInit callback. C.cgoClassInit
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// follows the idiom shown above with callbacks. We&#39;ll show the definition
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// of this method next.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">class_init</span> = <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GClassInitFunc</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">cgoClassInit</span>)
+    <span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">class_data</span> = (<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gconstpointer</span>)(<span style="color:#a6e22e">ptr</span>) <span style="color:#75715e">// Our dummy C pointer to the Go class data
+</span><span style="color:#75715e"></span>    
+    <span style="color:#75715e">// Similar for the class_init, this is the method that gets called to create new instances
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// of our Go object. There is no userdata passed to this function, so we&#39;ll track globally
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// GObjectClass&#39;s when they are registered to the go types where we have a New() method already
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// to create fresh instances.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">typeInfo</span>.<span style="color:#a6e22e">instance_init</span> = <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GInstanceInitFunc</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">cgoInstanceInit</span>)
+
+    <span style="color:#75715e">// We need to convert the Go string into a NULL terminated C char array
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// and again free it immediately when we are done.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">cName</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">name</span>)
+	<span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">free</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">cName</span>))
+
+    <span style="color:#75715e">// Register and return the new GType
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">gtype</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">g_type_register_static</span>(
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GType</span>(<span style="color:#a6e22e">extendable</span>.<span style="color:#a6e22e">Type</span>()),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">cName</span>),
+		<span style="color:#a6e22e">typeInfo</span>,
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GTypeFlags</span>(<span style="color:#ae81ff">0</span>),
+    )
+    
+    <span style="color:#75715e">// Write the new type to our global map
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">registeredTypes</span>[<span style="color:#a6e22e">reflect</span>.<span style="color:#a6e22e">TypeOf</span>(<span style="color:#a6e22e">elem</span>).<span style="color:#a6e22e">String</span>()] = <span style="color:#a6e22e">Type</span>(<span style="color:#a6e22e">gtype</span>)
+    
+    <span style="color:#75715e">// Return the GType to caller
+</span><span style="color:#75715e"></span>	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">Type</span>(<span style="color:#a6e22e">gtype</span>)
+}
+</code></pre></div><p>The two callbacks we used here are <code>goClassInit</code> and <code>goInstanceInit</code>, which were actually referenced as C trampolines following the <code>extern</code> idiom described above.
+We are going to utilize a second global map similar to the <code>registeredTypes</code> one called <code>registeredClasses</code> that looks like this.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// A map of a gpointer pointing to the GObjectClass representing the GoObjectSubclass value
+</span><span style="color:#75715e">// We will use this information when performing class_init and instance_init
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">registeredClasses</span> = <span style="color:#66d9ef">map</span>[<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>]<span style="color:#a6e22e">GoObjectSubclass</span>
+</code></pre></div><p>And below are the go callbacks. First the <code>goClassInit</code> which will only be called once when the class is being registered with the type system.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//export goClassInit
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">goClassInit</span>(<span style="color:#a6e22e">klass</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>, <span style="color:#a6e22e">klassData</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>) {
+	<span style="color:#a6e22e">registerMutex</span>.<span style="color:#a6e22e">Lock</span>()
+	<span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">registerMutex</span>.<span style="color:#a6e22e">Unlock</span>()
+
+    <span style="color:#75715e">// Grab the dummy C pointer that references the classData we created in the go runtime
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">klassData</span>)
+    <span style="color:#75715e">// Coerce that interface back to a classData structure. This is unsafe, but since these
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// methods are not exported for external consumption, their usage is constrained to the 
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// flows defined in this package.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">data</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Restore</span>(<span style="color:#a6e22e">ptr</span>).(<span style="color:#f92672">*</span><span style="color:#a6e22e">classData</span>)
+    <span style="color:#75715e">// We won&#39;t need the dummy C pointer after this and we can safely clean it up
+</span><span style="color:#75715e"></span>	<span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Unref</span>(<span style="color:#a6e22e">ptr</span>)
+
+    <span style="color:#75715e">// The pointer we were given above is the same pointer that will be given to us everytime
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// we want to create a new instance of our Go object. So we save a reference of it to the
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// Go object containing a New() method we can utilize.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">registeredClasses</span>[<span style="color:#a6e22e">klass</span>] = <span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">elem</span>
+
+    <span style="color:#75715e">// During class initialization we can declare to the type system that we have private
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// data we&#39;d like to store along with instances of our object. This will be very useful
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// for us as we&#39;ll see in the instance_init callback. For now, we declare that we are
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// goint to save a uintptr to the private data of the object. This pointer will be a
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// reference to the Go object matching the instantiated object.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">g_type_class_add_private</span>(<span style="color:#a6e22e">klass</span>, <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gsize</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Sizeof</span>(uintptr(<span style="color:#ae81ff">0</span>))))
+
+    <span style="color:#75715e">// Run the InitClas method provided by the Extendable that was given at Type registration
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// This is when vmethod assignment will take place, which we will cover in the next section.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">ext</span>.<span style="color:#a6e22e">InitClass</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">klass</span>), <span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">elem</span>)
+    
+    <span style="color:#75715e">// Call the Go Object&#39;s ClassInit method, giving it a chance to register any additional properties
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// it has.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">elem</span>.<span style="color:#a6e22e">ClassInit</span>(<span style="color:#a6e22e">wrapObjectClass</span>(<span style="color:#a6e22e">klass</span>)) <span style="color:#75715e">// Wraps the GObjectClass into a go-bound ObjectClass
+</span><span style="color:#75715e"></span>}
+</code></pre></div><p>Finally is the function that will be called during <code>instance_init</code>, which is to say when new instances of our object are being created.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//export goInstanceInit
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">goInstanceInit</span>(<span style="color:#a6e22e">obj</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GTypeInstance</span>, <span style="color:#a6e22e">klass</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>) {
+	<span style="color:#a6e22e">registerMutex</span>.<span style="color:#a6e22e">Lock</span>()
+	<span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">registerMutex</span>.<span style="color:#a6e22e">Unlock</span>()
+
+    <span style="color:#75715e">// Create a new instance of the GoObject from the interface we saved globally
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// during class_init.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">goelem</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">registeredClasses</span>[<span style="color:#a6e22e">klass</span>].<span style="color:#a6e22e">New</span>()
+    
+    <span style="color:#75715e">// Determine the name of the Go type so we can query our registeredTypes for the cooresponding
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// GType.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">typeName</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">reflect</span>.<span style="color:#a6e22e">TypeOf</span>(<span style="color:#a6e22e">registeredClasses</span>[<span style="color:#a6e22e">klass</span>]).<span style="color:#a6e22e">String</span>()
+    
+    <span style="color:#75715e">// Create a dummy C pointer pointing to the new go object
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Save</span>(<span style="color:#a6e22e">goelem</span>)
+    
+    <span style="color:#75715e">// We retrieve the address to the private data that we allocated during class_init,
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// and then save the dummy C pointer value to it. When retrieving the Go implementation of
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// a C vmethod, we&#39;ll use this value to determine who the Go caller should be. 
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">private</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">g_type_instance_get_private</span>(<span style="color:#a6e22e">obj</span>, <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GType</span>(<span style="color:#a6e22e">registeredTypes</span>[<span style="color:#a6e22e">typeName</span>]))
+	<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">memcpy</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">private</span>), <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ptr</span>), <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gsize</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Sizeof</span>(uintptr(<span style="color:#ae81ff">0</span>))))
+}
+</code></pre></div><p>When we want to get the reference to the Go object back from some arbitrary instantiated GObject, we can use a function like this:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">privateFromObj</span>(<span style="color:#a6e22e">obj</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>) <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span> {
+    <span style="color:#75715e">// Retrieve the address to the private data inside the object. objectGType is a simple wrapper
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// around the glib macro for determining an object&#39;s type. Remmber, how we can&#39;t use macros in Go code?
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">private</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">g_type_instance_get_private</span>((<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GTypeInstance</span>)(<span style="color:#a6e22e">obj</span>), <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">objectGType</span>((<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GObject</span>)(<span style="color:#a6e22e">obj</span>)))
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">private</span> <span style="color:#f92672">==</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span>
+    }
+    <span style="color:#75715e">// Coerce the value we got back to what we actually put there, which is a pointer to a pointer.
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// In writing this out I realize it might not be necessary to have it be a pointer to a pointer,
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// and instead we *could* just store the pointer value directly.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">privAddr</span> <span style="color:#f92672">:=</span> (<span style="color:#f92672">*</span><span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>)(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">private</span>))
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">privAddr</span> <span style="color:#f92672">==</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span>
+    }
+    <span style="color:#75715e">// However, since it&#39;s a pointer to a pointer, we dereference it back to the dummy C pointer that it is
+</span><span style="color:#75715e"></span>	<span style="color:#66d9ef">return</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">privAddr</span>
+}
+</code></pre></div><p>The output of this function can be passed to <code>gopointer.Restore()</code> to get back the reference to the underlying Go type.</p>
+<h3 id="back-to-that-initclass-function">Back to that InitClass Function</h3>
+<p>A lot of what we learned just now with regards to C callbacks and Go pointers, coupled with how we are building our Go objects at runtime,
+provides a little more context which will help us understand how the <code>InitClass</code> methods provided by the <code>Extendable</code> implementations works.</p>
+<p>Let&rsquo;s first take a look at the implementation provided for the <code>ExtendsObject</code></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">e</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">extendObject</span>) <span style="color:#a6e22e">InitClass</span>(<span style="color:#a6e22e">klass</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>, <span style="color:#a6e22e">elem</span> <span style="color:#a6e22e">GoObjectSubclass</span>) {
+	<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">setGObjectClassFinalize</span>(<span style="color:#a6e22e">klass</span>)
+
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">ok</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">elem</span>.(<span style="color:#66d9ef">interface</span> {
+		<span style="color:#a6e22e">SetProperty</span>(<span style="color:#a6e22e">obj</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Object</span>, <span style="color:#a6e22e">id</span> <span style="color:#66d9ef">uint</span>, <span style="color:#a6e22e">value</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Value</span>)
+	}); <span style="color:#a6e22e">ok</span> {
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">setGObjectClassSetProperty</span>(<span style="color:#a6e22e">klass</span>)
+	}
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">ok</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">elem</span>.(<span style="color:#66d9ef">interface</span> {
+		<span style="color:#a6e22e">GetProperty</span>(<span style="color:#a6e22e">obj</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Object</span>, <span style="color:#a6e22e">id</span> <span style="color:#66d9ef">uint</span>) <span style="color:#f92672">*</span><span style="color:#a6e22e">Value</span>
+	}); <span style="color:#a6e22e">ok</span> {
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">setGObjectClassGetProperty</span>(<span style="color:#a6e22e">klass</span>)
+	}
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">ok</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">elem</span>.(<span style="color:#66d9ef">interface</span> {
+		<span style="color:#a6e22e">Constructed</span>(<span style="color:#f92672">*</span><span style="color:#a6e22e">Object</span>)
+	}); <span style="color:#a6e22e">ok</span> {
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">setGObjectClassConstructed</span>(<span style="color:#a6e22e">klass</span>)
+	}
+}
+
+</code></pre></div><p>Earlier we mentioned how it is not required by the type system to override every vmethod provided by the extended class. When we chose not to do so, we inherit the behavior of the parent class.
+To emulate this, we can leverage Go&rsquo;s ability to check if any arbitrary interface implements another one (even one declared in-line to save us from even <em>more</em> boilerplate 😉).
+We use this to iterate on every possible method that can be implemented by extending objects (as per our &ldquo;reference&rdquo; implementation) and then call into C to override <strong>only</strong> the appropriate methods on the <code>GObjectClass</code>.</p>
+<p>Let&rsquo;s look at the C definitions for these setters, and then we&rsquo;ll look at the backing Go implementations that get invoked either by the trampolines or directly.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&#34;glib.go.h&#34;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">/*
+</span><span style="color:#75715e">Exported go methods that we will show next
+</span><span style="color:#75715e">*/</span>
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span>   <span style="color:#a6e22e">goObjectSetProperty</span>  (GObject <span style="color:#f92672">*</span> object, guint property_id, <span style="color:#66d9ef">const</span> GValue <span style="color:#f92672">*</span> value, GParamSpec <span style="color:#f92672">*</span>pspec);
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span>   <span style="color:#a6e22e">goObjectGetProperty</span>  (GObject <span style="color:#f92672">*</span> object, guint property_id, GValue <span style="color:#f92672">*</span> value, GParamSpec <span style="color:#f92672">*</span> pspec);
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span>   <span style="color:#a6e22e">goObjectConstructed</span>  (GObject <span style="color:#f92672">*</span> object);
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">void</span>   <span style="color:#a6e22e">goObjectFinalize</span>     (GObject <span style="color:#f92672">*</span> object, gpointer klass);
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e">The function called when an instance of our object is destroyed. We don&#39;t actually let the user
+</span><span style="color:#75715e">supply this logic, and instead handle finalization logic inside the bindings.
+</span><span style="color:#75715e">*/</span>
+<span style="color:#66d9ef">void</span> <span style="color:#a6e22e">objectFinalize</span> (GObject <span style="color:#f92672">*</span> object)
+{
+	GObjectClass <span style="color:#f92672">*</span>parent <span style="color:#f92672">=</span> g_type_class_peek_parent((G_OBJECT_GET_CLASS(object)));
+	goObjectFinalize(object, G_OBJECT_GET_CLASS(object));
+	parent<span style="color:#f92672">-&gt;</span>finalize(object);
+}
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e">The function called when a new instance of our object has finished being constructed. Call the go callback
+</span><span style="color:#75715e">and chain up to the parent handler.
+</span><span style="color:#75715e">*/</span>
+<span style="color:#66d9ef">void</span> <span style="color:#a6e22e">objectConstructed</span> (GObject <span style="color:#f92672">*</span> object)
+{
+	GObjectClass <span style="color:#f92672">*</span>parent <span style="color:#f92672">=</span> g_type_class_peek_parent((G_OBJECT_GET_CLASS(object)));
+	goObjectConstructed(object);
+	parent<span style="color:#f92672">-&gt;</span>constructed(object);
+}
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e">set_property and get_property are set directly to the exported go functions, no parent logic is required
+</span><span style="color:#75715e">*/</span>
+<span style="color:#66d9ef">void</span>  <span style="color:#a6e22e">setGObjectClassSetProperty</span>  (<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span> klass)  { ((GObjectClass <span style="color:#f92672">*</span>)klass)<span style="color:#f92672">-&gt;</span>set_property <span style="color:#f92672">=</span> goObjectSetProperty; }
+<span style="color:#66d9ef">void</span>  <span style="color:#a6e22e">setGObjectClassGetProperty</span>  (<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span> klass)  { ((GObjectClass <span style="color:#f92672">*</span>)klass)<span style="color:#f92672">-&gt;</span>get_property <span style="color:#f92672">=</span> goObjectGetProperty; }
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e">These methods need to chain up to the parent, and so we call into our C functions above that do that on top
+</span><span style="color:#75715e">of calling into the go callback.
+</span><span style="color:#75715e">*/</span>
+<span style="color:#66d9ef">void</span>  <span style="color:#a6e22e">setGObjectClassConstructed</span>  (<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span> klass)  { ((GObjectClass <span style="color:#f92672">*</span>)klass)<span style="color:#f92672">-&gt;</span>constructed <span style="color:#f92672">=</span> objectConstructed; }
+<span style="color:#66d9ef">void</span>  <span style="color:#a6e22e">setGObjectClassFinalize</span>     (<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span> klass)  { ((GObjectClass <span style="color:#f92672">*</span>)klass)<span style="color:#f92672">-&gt;</span>finalize <span style="color:#f92672">=</span> objectFinalize; }
+</code></pre></div><p>Now let&rsquo;s look at the cooresponding Go functions. We&rsquo;ll cover a few helpers and just two of the callbacks, as they all follow the same pattern.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// This function further wraps the privateFromObj method we defined above.
+</span><span style="color:#75715e">// It takes a pointer to a GObject, retrieves the dummy C pointer we stored
+</span><span style="color:#75715e">// in the private data, and restores it back to the Go object.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">fromObjectUnsafePrivate</span>(<span style="color:#a6e22e">obj</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>) <span style="color:#a6e22e">GoObjectSubclass</span> {
+	<span style="color:#a6e22e">objPriv</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">privateFromObj</span>(<span style="color:#a6e22e">obj</span>)
+	<span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Restore</span>(<span style="color:#a6e22e">objPriv</span>)
+	<span style="color:#a6e22e">goclass</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">ptr</span>.(<span style="color:#a6e22e">GoObjectSubclass</span>)
+	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">goclass</span>
+}
+
+<span style="color:#75715e">//export goObjectFinalize
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">goObjectFinalize</span>(<span style="color:#a6e22e">obj</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GObject</span>, <span style="color:#a6e22e">klass</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>) {
+    <span style="color:#75715e">// Not much here, we just Unref our dummy C pointer and let the Go garbage collector take care
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// of the go structures.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Unref</span>(<span style="color:#a6e22e">privateFromObj</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">obj</span>)))
+}
+
+<span style="color:#75715e">// SetProperty and GetProperty follow the same pattern as the Constructed. As do all other methods
+</span><span style="color:#75715e">// that can be overridden by an extending object. The bindings provide a helper method for auomatically
+</span><span style="color:#75715e">// giving you back the wrapped object and matching Go instance, but it is written out above and here
+</span><span style="color:#75715e">// for documentation purposes.
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">//export goObjectConstructed
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">goObjectConstructed</span>(<span style="color:#a6e22e">obj</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GObject</span>) {
+    <span style="color:#75715e">// simple wrapper that wraps the GObject in the binding equivalent
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">object</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">wrapObject</span>(<span style="color:#a6e22e">obj</span>)
+    <span style="color:#75715e">// Retrieve the go object from the GObject&#39;s private data
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">goObject</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">fromObjectUnsafePrivate</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">obj</span>))
+    <span style="color:#75715e">// Coerce the Go object to an interface with a Constructed method and execute it.
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// We don&#39;t have to do any safety checks here, because we only assigned the vmethod
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// on the GObectClass if the Constructed method was implemented on the Go type already.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">goObject</span>.(<span style="color:#66d9ef">interface</span>{ <span style="color:#a6e22e">Constructed</span>(<span style="color:#f92672">*</span><span style="color:#a6e22e">Object</span>) }).<span style="color:#a6e22e">Constructed</span>(<span style="color:#a6e22e">object</span>)
+}
+</code></pre></div><p>The <code>InitClass</code> of every <code>Extendable</code> follows an almost identical pattern. Chain up to the parent <code>InitClass</code>, check each possible vmethod&rsquo;s existence on the Go type, and assign trampolines to the vmethods on the <code>GObjectClass</code>.</p>
+<hr>
+<h2 id="registering-ginterfaces-to-the-gtype">Registering GInterfaces to the GType</h2>
+<p>Much of what we learned and had to do for class initialization will be relevant to providing one or more <code>GInterfaces</code> along with our Go object.
+But first, we&rsquo;ll need another interface for binding libraries to implement very similar to the <code>Extendable</code>, as well as a data structure we&rsquo;ll pass around when the C equivalent gets called.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// TypeInstance is a loose binding around the glib GTypeInstance. It holds the information required to assign
+</span><span style="color:#75715e">// various capabilities of a GoObjectSubclass.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">TypeInstance</span> <span style="color:#66d9ef">struct</span> {
+	<span style="color:#75715e">// The GType cooresponding to this GoType
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">GType</span> <span style="color:#a6e22e">Type</span>
+	<span style="color:#75715e">// A pointer to the underlying C instance being instantiated.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">GTypeInstance</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>
+	<span style="color:#75715e">// A representation of the GoType.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">GoType</span> <span style="color:#a6e22e">GoObjectSubclass</span>
+}
+
+<span style="color:#75715e">// Interface can be implemented by extending packages. They provide the base type for the interface and
+</span><span style="color:#75715e">// a function to call during interface_init.
+</span><span style="color:#75715e">//
+</span><span style="color:#75715e">// The function is called during class_init and  is passed a TypeInstance populated with the GType
+</span><span style="color:#75715e">// corresponding to the Go object, a pointer to the underlying C object, and a pointer to a reference
+</span><span style="color:#75715e">// Go object. When the object is actually used, a pointer to it can be retrieved from the C object with
+</span><span style="color:#75715e">// fromObjectUnsafePrivate shown above.
+</span><span style="color:#75715e">//
+</span><span style="color:#75715e">// The user of the Interface is responsible for implementing the methods required by the interface. The GoType
+</span><span style="color:#75715e">// provided to the InterfaceInitFunc will be the object that is expected to carry the implementation.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Interface</span> <span style="color:#66d9ef">interface</span> {
+	<span style="color:#a6e22e">Type</span>() <span style="color:#a6e22e">Type</span>
+	<span style="color:#a6e22e">Init</span>(<span style="color:#f92672">*</span><span style="color:#a6e22e">TypeInstance</span>)
+}
+</code></pre></div><p>We then alter our <code>RegisterGoType</code> function to take an arbitrary number of <code>Interfaces</code> during registration.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">RegisterGoType</span>(<span style="color:#a6e22e">name</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">elem</span> <span style="color:#a6e22e">GoObjectSubclass</span>, <span style="color:#a6e22e">extendable</span> <span style="color:#a6e22e">Extendable</span>, <span style="color:#a6e22e">interfaces</span> <span style="color:#f92672">...</span><span style="color:#a6e22e">Interface</span>)
+</code></pre></div><p>And right before returning we loop over those interfaces and follow a familiar pattern</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// ...
+</span><span style="color:#75715e">// The structure we will pass as the userdata to the interface_init callback
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">interfaceData</span> <span style="color:#66d9ef">struct</span> {
+	<span style="color:#a6e22e">iface</span>     <span style="color:#a6e22e">Interface</span>
+	<span style="color:#a6e22e">gtype</span>     <span style="color:#a6e22e">Type</span>
+	<span style="color:#a6e22e">classData</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">classData</span>
+}
+<span style="color:#75715e">// ...
+</span><span style="color:#75715e"></span>
+
+	<span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">iface</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">interfaces</span> {
+        <span style="color:#75715e">// Create our dummy C pointer
+</span><span style="color:#75715e"></span>		<span style="color:#a6e22e">gofuncPtr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Save</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">interfaceData</span>{
+			<span style="color:#a6e22e">iface</span>:     <span style="color:#a6e22e">iface</span>,
+			<span style="color:#a6e22e">gtype</span>:     <span style="color:#a6e22e">Type</span>(<span style="color:#a6e22e">gtype</span>),
+			<span style="color:#a6e22e">classData</span>: <span style="color:#a6e22e">classData</span>,
+        })
+        <span style="color:#75715e">// Create an ifaceinfo assigned to a trampoline defined below
+</span><span style="color:#75715e"></span>		<span style="color:#a6e22e">ifaceInfo</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GInterfaceInfo</span>{
+			<span style="color:#a6e22e">interface_data</span>:     (<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>)(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">gofuncPtr</span>)),
+			<span style="color:#a6e22e">interface_finalize</span>: <span style="color:#66d9ef">nil</span>,
+			<span style="color:#a6e22e">interface_init</span>:     <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GInterfaceInitFunc</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">cgoInterfaceInit</span>),
+        }
+        <span style="color:#75715e">// Register the interface with the GType
+</span><span style="color:#75715e"></span>		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">g_type_add_interface_static</span>(
+			(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GType</span>)(<span style="color:#a6e22e">gtype</span>),
+			(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GType</span>)(<span style="color:#a6e22e">iface</span>.<span style="color:#a6e22e">Type</span>()),
+			<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ifaceInfo</span>,
+		)
+	}
+
+</code></pre></div><p>Our exported <code>goInterfaceInit</code> is pretty simple and looks like this.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//export goInterfaceInit
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">goInterfaceInit</span>(<span style="color:#a6e22e">iface</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>, <span style="color:#a6e22e">ifaceData</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>) {
+    <span style="color:#75715e">// Restore the go pointer
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">ptr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">ifaceData</span>)
+	<span style="color:#66d9ef">defer</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Unref</span>(<span style="color:#a6e22e">ptr</span>)
+	<span style="color:#75715e">// Call the interface init handler in this data
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">data</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gopointer</span>.<span style="color:#a6e22e">Restore</span>(<span style="color:#a6e22e">ptr</span>).(<span style="color:#f92672">*</span><span style="color:#a6e22e">interfaceData</span>)
+	<span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">iface</span>.<span style="color:#a6e22e">Init</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">TypeInstance</span>{
+		<span style="color:#a6e22e">GoType</span>:        <span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">classData</span>.<span style="color:#a6e22e">elem</span>,
+		<span style="color:#a6e22e">GType</span>:         <span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">gtype</span>,
+		<span style="color:#a6e22e">GTypeInstance</span>: <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">iface</span>),
+	})
+}
+</code></pre></div><p>To bring this all together let&rsquo;s look at the <code>GstUriHandler</code> interface implementation in <code>go-gst</code>. Most of these idioms should be recognizable at this point.
+First, we have the C code that contains our trampolines back to our go exports.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">/* Our exported go functions */</span>
+<span style="color:#66d9ef">extern</span> GstURIType              <span style="color:#a6e22e">goURIHdlrGetURIType</span>        (GType type);
+<span style="color:#66d9ef">extern</span> <span style="color:#66d9ef">const</span> gchar <span style="color:#f92672">*</span> <span style="color:#66d9ef">const</span> <span style="color:#f92672">*</span>   <span style="color:#a6e22e">goURIHdlrGetProtocols</span>      (GType type);
+<span style="color:#66d9ef">extern</span> gchar <span style="color:#f92672">*</span>                 <span style="color:#a6e22e">goURIHdlrGetURI</span>            (GstURIHandler <span style="color:#f92672">*</span> handler);
+<span style="color:#66d9ef">extern</span> gboolean                <span style="color:#a6e22e">goURIHdlrSetURI</span>            (GstURIHandler <span style="color:#f92672">*</span> handler,
+                                                           <span style="color:#66d9ef">const</span> gchar   <span style="color:#f92672">*</span> uri,
+														   GError       <span style="color:#f92672">**</span> error);
+
+<span style="color:#75715e">/* Sets the vmethods on the interface to our go exports */</span>
+<span style="color:#66d9ef">void</span> <span style="color:#a6e22e">uriHandlerInit</span> (gpointer iface, gpointer iface_data)
+{
+	((GstURIHandlerInterface<span style="color:#f92672">*</span>)iface)<span style="color:#f92672">-&gt;</span>get_type <span style="color:#f92672">=</span> goURIHdlrGetURIType;
+	((GstURIHandlerInterface<span style="color:#f92672">*</span>)iface)<span style="color:#f92672">-&gt;</span>get_protocols <span style="color:#f92672">=</span> goURIHdlrGetProtocols;
+	((GstURIHandlerInterface<span style="color:#f92672">*</span>)iface)<span style="color:#f92672">-&gt;</span>get_uri <span style="color:#f92672">=</span> goURIHdlrGetURI;
+	((GstURIHandlerInterface<span style="color:#f92672">*</span>)iface)<span style="color:#f92672">-&gt;</span>set_uri <span style="color:#f92672">=</span> goURIHdlrSetURI;
+}
+</code></pre></div><p>Followed by the implementation of the <code>Interface</code> interface we declared earlier.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// InterfaceURIHandler represents the GstURIHandler interface GType. Use this when querying bins
+</span><span style="color:#75715e">// for elements that implement a URIHandler, or when signaling that a GoObjectSubclass provides this
+</span><span style="color:#75715e">// interface. Note that the way this interface is implemented, it can only be used once per plugin.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">InterfaceURIHandler</span> <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Interface</span> = <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">interfaceURIHandler</span>{}
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">interfaceURIHandler</span> <span style="color:#66d9ef">struct</span>{ <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Interface</span> }
+
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">i</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">interfaceURIHandler</span>) <span style="color:#a6e22e">Type</span>() <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Type</span> { <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Type</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GST_TYPE_URI_HANDLER</span>) }
+<span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">i</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">interfaceURIHandler</span>) <span style="color:#a6e22e">Init</span>(<span style="color:#a6e22e">instance</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">TypeInstance</span>) {
+	<span style="color:#a6e22e">globalURIHdlr</span> = <span style="color:#a6e22e">instance</span>.<span style="color:#a6e22e">GoType</span>.(<span style="color:#a6e22e">URIHandler</span>)
+	<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">uriHandlerInit</span>((<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>)(<span style="color:#a6e22e">instance</span>.<span style="color:#a6e22e">GTypeInstance</span>), <span style="color:#66d9ef">nil</span>)
+}
+</code></pre></div><p>And finally, for an example of one of the exported Go functions.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//export goURIHdlrGetURI
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">goURIHdlrGetURI</span>(<span style="color:#a6e22e">hdlr</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GstURIHandler</span>) <span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span> {
+    <span style="color:#75715e">// Get our go object from the private data in the instance
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">goObject</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">fromObjectUnsafePrivate</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">hdlr</span>))
+    <span style="color:#75715e">// Coerce the go object to the URIHandler interface (not shown here)
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// and execute the method.
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">uri</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">goObject</span>.(<span style="color:#a6e22e">URIHandler</span>).<span style="color:#a6e22e">GetURI</span>()
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">uri</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;&#34;</span> { 
+        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">nil</span> 
+    }
+    <span style="color:#75715e">// Convert the return from the go function to a C type and return it
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// to the caller
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">return</span> (<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">uri</span>)))
+}
+</code></pre></div><hr>
+<h2 id="registering-the-plugin-with-gstreamer">Registering the Plugin with GStreamer</h2>
+<p>That was a lot of work to get to this point, but everything is now in place for the user to take some arbitrary Go structure and declare it as a <code>GType</code>.
+From here, we operate under the assumption that an <code>Extendable</code> exists for the <code>GstBaseSrc</code> that descends from and is implemented the same way as the <code>ExtendsObject</code>.
+The binding for the <code>gst_element_register</code> API is pretty simple.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// RegisterElement creates a new elementfactory capable of instantiating objects of the given GoElement
+</span><span style="color:#75715e">// and adds the factory to the plugin. A higher rank means more importance when autoplugging.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">RegisterElement</span>(<span style="color:#a6e22e">plugin</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">Plugin</span>, <span style="color:#a6e22e">name</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">rank</span> <span style="color:#a6e22e">Rank</span>, <span style="color:#a6e22e">elem</span> <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">GoObjectSubclass</span>, <span style="color:#a6e22e">extends</span> <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Extendable</span>, <span style="color:#a6e22e">interfaces</span> <span style="color:#f92672">...</span><span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Interface</span>) <span style="color:#66d9ef">bool</span> {
+	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">gobool</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gst_element_register</span>(
+		<span style="color:#a6e22e">plugin</span>.<span style="color:#a6e22e">Instance</span>(),
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">name</span>),
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">guint</span>(<span style="color:#a6e22e">rank</span>),
+        <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GType</span>(<span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">RegisterGoType</span>(<span style="color:#a6e22e">name</span>, <span style="color:#a6e22e">elem</span>, <span style="color:#a6e22e">extends</span>, <span style="color:#a6e22e">interfaces</span><span style="color:#f92672">...</span>)), <span style="color:#75715e">// Register the GType for the go object on the fly
+</span><span style="color:#75715e"></span>                                                                          <span style="color:#75715e">// which will go through all the boilerplate we laid
+</span><span style="color:#75715e"></span>                                                                          <span style="color:#75715e">// down earlier.
+</span><span style="color:#75715e"></span>	))
+}
+</code></pre></div><p>But how we get to this point is a little trickier, and is where I ultimately ended up writing a Go generator purely out of trying to provide the best UX possible.</p>
+<p>When GStreamer loads our <code>.so</code> file, it looks for a symbol matching the following format: <code>gst_plugin_NAME_get_desc</code>.
+They make this very easy to do for the person developing their own plugin. They provide a <code>GST_PLUGIN_DEFINE</code> macro that handles all the boilerplate instructions necessary.
+What it then can expect this function to do is return a <code>GstPluginDesc</code> that, along with metadata, contains an <code>init</code> function for GStreamer to call that performs the actual registration.</p>
+<p>But remember how we can&rsquo;t use C macros from Go code? And how we don&rsquo;t have any pre-processor?</p>
+<p>Creating a function that can convert between the example we showed at the top of this article and what GStreamer needs is pretty simple, but again we&rsquo;ll have to annoy memory-leak checkers.</p>
+<p>First, some more C boilerplate.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&#34;gst.go.h&#34;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">/* More exported callbacks */</span>
+<span style="color:#66d9ef">extern</span> gboolean <span style="color:#a6e22e">goGlobalPluginInit</span> (GstPlugin <span style="color:#f92672">*</span> plugin);
+
+gboolean 
+<span style="color:#a6e22e">cgoGlobalPluginInit</span>(GstPlugin <span style="color:#f92672">*</span> plugin)
+{
+	<span style="color:#66d9ef">return</span> goGlobalPluginInit(plugin);
+}
+
+GstPluginDesc <span style="color:#f92672">*</span> <span style="color:#a6e22e">getPluginMeta</span> (gint major,
+					gint minor,
+					gchar <span style="color:#f92672">*</span> name,
+					gchar <span style="color:#f92672">*</span> description,
+					GstPluginInitFunc init,
+					gchar <span style="color:#f92672">*</span> version,
+					gchar <span style="color:#f92672">*</span> license,
+					gchar <span style="color:#f92672">*</span> source,
+					gchar <span style="color:#f92672">*</span> package,
+					gchar <span style="color:#f92672">*</span> origin,
+					gchar <span style="color:#f92672">*</span> release_datetime)
+{
+
+	GstPluginDesc <span style="color:#f92672">*</span> desc <span style="color:#f92672">=</span> malloc ( <span style="color:#66d9ef">sizeof</span> (GstPluginDesc) );
+
+	desc<span style="color:#f92672">-&gt;</span>major_version <span style="color:#f92672">=</span> major;
+	desc<span style="color:#f92672">-&gt;</span>minor_version <span style="color:#f92672">=</span> minor;
+	desc<span style="color:#f92672">-&gt;</span>name <span style="color:#f92672">=</span> name;
+	desc<span style="color:#f92672">-&gt;</span>description <span style="color:#f92672">=</span> description;
+	desc<span style="color:#f92672">-&gt;</span>plugin_init <span style="color:#f92672">=</span> init;
+	desc<span style="color:#f92672">-&gt;</span>version <span style="color:#f92672">=</span> version;
+	desc<span style="color:#f92672">-&gt;</span>license <span style="color:#f92672">=</span> license;
+	desc<span style="color:#f92672">-&gt;</span>source <span style="color:#f92672">=</span> source;
+	desc<span style="color:#f92672">-&gt;</span>package <span style="color:#f92672">=</span> package;
+	desc<span style="color:#f92672">-&gt;</span>origin <span style="color:#f92672">=</span> origin;
+	desc<span style="color:#f92672">-&gt;</span>release_datetime <span style="color:#f92672">=</span> release_datetime;
+
+	<span style="color:#66d9ef">return</span> desc;
+}
+</code></pre></div><p>And the go types representing the <code>GstPluginDesc</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// PluginMetadata represents the information to include when registering a new plugin
+</span><span style="color:#75715e">// with gstreamer.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">PluginMetadata</span> <span style="color:#66d9ef">struct</span> {
+	<span style="color:#75715e">// The major version number of the GStreamer core that the plugin was compiled for, you can just use VersionMajor here
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MajorVersion</span> <span style="color:#a6e22e">Version</span>
+	<span style="color:#75715e">// The minor version number of the GStreamer core that the plugin was compiled for, you can just use VersionMinor here
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MinorVersion</span> <span style="color:#a6e22e">Version</span>
+	<span style="color:#75715e">// A unique name of the plugin (ideally prefixed with an application- or library-specific namespace prefix in order to
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// avoid name conflicts in case a similar plugin with the same name ever gets added to GStreamer)
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Name</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#75715e">// A description of the plugin
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Description</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#75715e">// The function to call when initiliazing the plugin
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Init</span> <span style="color:#a6e22e">PluginInitFunc</span>
+	<span style="color:#75715e">// The version of the plugin
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Version</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#75715e">// The license for the plugin, must match one of the license constants in this package
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">License</span> <span style="color:#a6e22e">License</span>
+	<span style="color:#75715e">// The source module the plugin belongs to
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Source</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#75715e">// The shipped package the plugin belongs to
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Package</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#75715e">// The URL to the provider of the plugin
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Origin</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#75715e">// The date of release in ISO 8601 format.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// See https://gstreamer.freedesktop.org/documentation/gstreamer/gstplugin.html?gi-language=c#GstPluginDesc for more details.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">ReleaseDate</span> <span style="color:#66d9ef">string</span>
+}
+<span style="color:#75715e">// Export will export the PluginMetadata to an unsafe pointer to a GstPluginDesc.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">p</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">PluginMetadata</span>) <span style="color:#a6e22e">Export</span>() <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span> {
+	<span style="color:#a6e22e">globalPluginInit</span> = <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Init</span>
+	<span style="color:#a6e22e">desc</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">getPluginMeta</span>(
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gint</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">MajorVersion</span>),
+		<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gint</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">MinorVersion</span>),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#f92672">&amp;</span>[]byte(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Name</span>)[<span style="color:#ae81ff">0</span>])),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Description</span>)),
+		(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GstPluginInitFunc</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">cgoGlobalPluginInit</span>)),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Version</span>)),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(string(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">License</span>))),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Source</span>)),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Package</span>)),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Origin</span>)),
+		(<span style="color:#f92672">*</span><span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gchar</span>)(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">CString</span>(<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">ReleaseDate</span>)),
+	)
+	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">desc</span>)
+}
+</code></pre></div><p>It is in that <code>Export</code> method where we abandon all hope of freeing all those C strings we generated.
+But knowing that any self respecting kernel will handle necessary cleanup after the process exits, and with no sensitive data being present in these fields, we can live with ourselves.
+But with the above all done, the complete entrypoint to the plugin can be finished.</p>
+<p>To grab from the generated code for the example <a href="https://github.com/tinyzimmer/go-gst/tree/main/examples/plugins/gofilesrc">gofilesrc</a>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// !WARNING!    THIS FILE WAS GENERATED BY GST-PLUGIN-GEN    !WARNING! //
+</span><span style="color:#75715e"></span><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;C&#34;</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;unsafe&#34;</span>
+
+	<span style="color:#e6db74">&#34;github.com/tinyzimmer/go-gst/gst&#34;</span>
+	<span style="color:#e6db74">&#34;github.com/tinyzimmer/go-gst/gst/base&#34;</span>
+)
+
+<span style="color:#75715e">// The metadata for this plugin
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">pluginMeta</span> = <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">PluginMetadata</span>{
+	<span style="color:#a6e22e">MajorVersion</span>: <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">VersionMajor</span>,
+	<span style="color:#a6e22e">MinorVersion</span>: <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">VersionMinor</span>,
+	<span style="color:#a6e22e">Name</span>:         <span style="color:#e6db74">&#34;gofilesrc&#34;</span>,
+	<span style="color:#a6e22e">Description</span>:  <span style="color:#e6db74">&#34;File plugins written in go&#34;</span>,
+	<span style="color:#a6e22e">Version</span>:      <span style="color:#e6db74">&#34;v0.0.1&#34;</span>,
+	<span style="color:#a6e22e">License</span>:      <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">LicenseLGPL</span>,
+	<span style="color:#a6e22e">Source</span>:       <span style="color:#e6db74">&#34;go-gst&#34;</span>,
+	<span style="color:#a6e22e">Package</span>:      <span style="color:#e6db74">&#34;examples&#34;</span>,
+	<span style="color:#a6e22e">Origin</span>:       <span style="color:#e6db74">&#34;https://github.com/tinyzimmer/go-gst&#34;</span>,
+	<span style="color:#a6e22e">ReleaseDate</span>:  <span style="color:#e6db74">&#34;2021-01-04&#34;</span>,
+	<span style="color:#75715e">// The init function is called to register elements provided by the plugin.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">Init</span>: <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">plugin</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">Plugin</span>) <span style="color:#66d9ef">bool</span> {
+		<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">RegisterElement</span>(
+			<span style="color:#a6e22e">plugin</span>,
+			<span style="color:#75715e">// The name of the element
+</span><span style="color:#75715e"></span>			<span style="color:#e6db74">&#34;gofilesrc&#34;</span>,
+			<span style="color:#75715e">// The rank of the element
+</span><span style="color:#75715e"></span>			<span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">RankNone</span>,
+			<span style="color:#75715e">// The GoElement implementation for the element
+</span><span style="color:#75715e"></span>			<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">fileSrc</span>{},
+			<span style="color:#75715e">// The base subclass this element extends
+</span><span style="color:#75715e"></span>			<span style="color:#a6e22e">base</span>.<span style="color:#a6e22e">ExtendsBaseSrc</span>,
+			<span style="color:#75715e">// The interfaces this element implements
+</span><span style="color:#75715e"></span>			<span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">InterfaceURIHandler</span>,
+		)
+	},
+}
+
+<span style="color:#75715e">// A single method must be exported from the compiled library that provides for GStreamer
+</span><span style="color:#75715e">// to fetch the description and init function for this plugin. The name of the method
+</span><span style="color:#75715e">// must match the format gst_plugin_NAME_get_desc, where NAME is the name of the compiled
+</span><span style="color:#75715e">// artifact with or without the &#34;libgst&#34; prefix and hyphens are replaced with underscores.
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">//export gst_plugin_gofilesrc_get_desc
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">gst_plugin_gofilesrc_get_desc</span>() <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span> { <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">pluginMeta</span>.<span style="color:#a6e22e">Export</span>() }
+
+</code></pre></div><p>I did not want the user to have to import &ldquo;C&rdquo; at all, though. So this is where I surrendered to writing a go generator.
+Doing so is not terribly difficult, and we have a very simple code structure we are working with.
+You can see the full code for the generator <a href="https://github.com/tinyzimmer/go-gst/blob/main/cmd/gst-plugin-gen/main.go">here</a>, but what&rsquo;s important is what we exposed to the user for generating the above.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//go:generate gst-plugin-gen
+</span><span style="color:#75715e">//
+</span><span style="color:#75715e">// +plugin:Name=gofilesrc
+</span><span style="color:#75715e">// +plugin:Description=File plugins written in go
+</span><span style="color:#75715e">// +plugin:Version=v0.0.1
+</span><span style="color:#75715e">// +plugin:License=gst.LicenseLGPL
+</span><span style="color:#75715e">// +plugin:Source=go-gst
+</span><span style="color:#75715e">// +plugin:Package=examples
+</span><span style="color:#75715e">// +plugin:Origin=https://github.com/tinyzimmer/go-gst
+</span><span style="color:#75715e">// +plugin:ReleaseDate=2021-01-04
+</span><span style="color:#75715e">//
+</span><span style="color:#75715e">// +element:Name=gofilesrc
+</span><span style="color:#75715e">// +element:Rank=gst.RankNone
+</span><span style="color:#75715e">// +element:Impl=fileSrc
+</span><span style="color:#75715e">// +element:Subclass=base.ExtendsBaseSrc
+</span><span style="color:#75715e">// +element:Interfaces=gst.InterfaceURIHandler
+</span><span style="color:#75715e">//
+</span><span style="color:#75715e"></span><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+</code></pre></div><p>From there all that&rsquo;s left to the user is implementing the methods on the <strong>Extendables</strong> and <strong>Interfaces</strong> they declared.
+I won&rsquo;t show all of the code for the plugin here and you can see it in its entirety in <a href="https://github.com/tinyzimmer/go-gst/blob/main/examples/plugins/gofilesrc/filesrc.go">git</a>.
+But, it leverages the above which is all included now across the <code>go-gst</code> and <code>go-glib</code> bindings, and just to show the methods required by the <code>GoObjectSubclass</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// The structure where we are defining our methods. Contains private fields 
+</span><span style="color:#75715e">// for structures holding the current settings and state.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">fileSrc</span> <span style="color:#66d9ef">struct</span> {
+	<span style="color:#75715e">// The settings for the element
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">settings</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">settings</span>
+	<span style="color:#75715e">// The current state of the element
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">state</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">state</span>
+}
+
+<span style="color:#75715e">// When New() is called we return a new instance of the fileSrc structure.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">f</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">fileSrc</span>) <span style="color:#a6e22e">New</span>() <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">GoObjectSubclass</span> {
+	<span style="color:#66d9ef">return</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">fileSrc</span>{
+		<span style="color:#a6e22e">settings</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">settings</span>{},
+		<span style="color:#a6e22e">state</span>:    <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">state</span>{},
+	}
+}
+
+<span style="color:#75715e">// We call into the various bindings across go-gst and go-glib to declare the metadata
+</span><span style="color:#75715e">// and pads associated with our element.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">f</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">fileSrc</span>) <span style="color:#a6e22e">ClassInit</span>(<span style="color:#a6e22e">klass</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">ObjectClass</span>) {
+	<span style="color:#a6e22e">class</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">ToElementClass</span>(<span style="color:#a6e22e">klass</span>)
+	<span style="color:#a6e22e">class</span>.<span style="color:#a6e22e">SetMetadata</span>(
+		<span style="color:#e6db74">&#34;File Source&#34;</span>,
+		<span style="color:#e6db74">&#34;Source/File&#34;</span>,
+		<span style="color:#e6db74">&#34;Read stream from a file&#34;</span>,
+		<span style="color:#e6db74">&#34;Avi Zimmerman &lt;avi.zimmerman@gmail.com&gt;&#34;</span>,
+	)
+	<span style="color:#a6e22e">class</span>.<span style="color:#a6e22e">AddPadTemplate</span>(<span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">NewPadTemplate</span>(
+		<span style="color:#e6db74">&#34;src&#34;</span>,
+		<span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">PadDirectionSource</span>,
+		<span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">PadPresenceAlways</span>,
+		<span style="color:#a6e22e">gst</span>.<span style="color:#a6e22e">NewAnyCaps</span>(),
+	))
+	<span style="color:#a6e22e">class</span>.<span style="color:#a6e22e">InstallProperties</span>(<span style="color:#a6e22e">properties</span>) <span style="color:#75715e">// Properties contains GParamSpec bindings that were not covered in this article
+</span><span style="color:#75715e"></span>}
+</code></pre></div><hr>
+<p>And when all is said and done and compiled&hellip;
+<img src="/images/gofilesrc-inspect.jpg" alt="inspect"></p>
+<p>One thing that is not yet implemented yet in the bindings is the ability to define Signals. User&rsquo;s currently have the ability to emit and connect to existing ones on objects, but they are unable to declare their own.
+This will be addressed in a future release.</p>
+<hr>
+<p>That&rsquo;s all I&rsquo;ve got for this post, I hope you found it interesting. Maybe some of the roundabout adventures taken here will reach the Go developers
+and they&rsquo;ll come up with new ideas on how to further improve the CGO ecosystem.
+It is very powerful the way it is now, but the introduction of things such as Generics in Go v2 (if that is actually seen to fruition) could open some new and exciting doors for how this all could be implemented in the future.</p>
+<p>Thanks for reading! 😄</p>
+
+</div>
+
+    </div><footer class="text-center p-2 text-muted footer">
+  
+    
+  
+
+  
+
+  <div class="py-2 copyright">
+    <small>Copyright &#169; 2021 Avi Zimmerman</small>
+  </div>
+</footer>
+
+    
+    
+    
+    <script src="/assets/js/main.min.6ff0d57b7558f0225c80bade926a349330bc25d85e7ceff50d911f1156023c3e.js" integrity="sha256-b/DVe3VY8CJcgLrekmo0kzC8JdhefO/1DZEfEVYCPD4=" crossorigin="anonymous"></script>
+    <script src="/assets/js/custom.min.c8274a0cac0477f854e63f09626cc63858bb2bc9db8faecbb2834846952c7fd6.js" integrity="sha256-yCdKDKwEd/hU5j8JYmzGOFi7K8nbj67LsoNIRpUsf9Y=" crossorigin="anonymous"></script>
+    
+    <link href="https://fonts.googleapis.com/css?family=Roboto|Lato&display=swap" rel="stylesheet">
+    
+    
+    
+  </body>
+</html>
