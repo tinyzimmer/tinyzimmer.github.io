@@ -15,8 +15,7 @@
 
 <title>Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog</title>
 <meta name="title" content="Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog" />
-<meta name="description" content="When I first started writing my GStreamer bindings for go, I had never done C library bindings before. I had written small programs in C for fun, but most of my professional work was either Go, Python, or just pure BASH. I spent a lot of time over in #gstreamer on freenode probably driving the core developers utterly insane.
-About half way through this adventure, I was working on the bindings for one of the APIs (I don&rsquo;t remember which) and when inquiring further about it slomo informed me &ldquo;that&rsquo;s really only used for plugins."> 
+<meta name="description" content="A journey through implementing GObjects with cgo and making them accessible to C code"> 
 
 
 <link rel="canonical" href="https://tinyzimmer.github.io/posts/exporting-gobject-from-go/" />
@@ -24,7 +23,7 @@ About half way through this adventure, I was working on the bindings for one of 
 
   
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:description" content="" /> 
+  <meta name="twitter:description" content="A journey through implementing GObjects with cgo and making them accessible to C code" /> 
   <meta name="twitter:title" content="Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog" />
   <meta name="twitter:url" content="https://tinyzimmer.github.io/posts/exporting-gobject-from-go/" />
   
@@ -35,7 +34,7 @@ About half way through this adventure, I was working on the bindings for one of 
 
   
   <meta property="og:title" content="Extending GObjects From Go and Making Them Available to C | tinyzimmer&#39;s blog" />
-  <meta property="og:description" content="" /> 
+  <meta property="og:description" content="A journey through implementing GObjects with cgo and making them accessible to C code" /> 
   <meta property="og:site_name" content="tinyzimmer&#39;s blog" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:type" content="article" />
@@ -62,7 +61,7 @@ About half way through this adventure, I was working on the bindings for one of 
           },
           
           "image": "/images/c-gopher.png",
-          "description": "A blog where I document my journeys through automation and code",
+          "description": "A journey through implementing GObjects with cgo and making them accessible to C code",
           
           "sameAs" : [
             
@@ -141,7 +140,7 @@ About half way through this adventure, I was working on the bindings for one of 
 <div class="container-fluid bg-clr1 text-nav text-center pb-3 pt-4 position-relative shadow-sm">
   <div style="height:3.5rem;"></div>
   <h1>Extending GObjects From Go and Making Them Available to C</h1>
-  
+  <p>A journey through implementing GObjects with cgo and making them accessible to C code</p>
 </div>
 <div class="container bg-nav py-3">
   <hr>
