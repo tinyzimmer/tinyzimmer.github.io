@@ -657,11 +657,11 @@ We are going to utilize a second global map similar to the <code>registeredTypes
     <span style="color:#75715e">// During class initialization we can declare to the type system that we have private
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// data we&#39;d like to store along with instances of our object. This will be very useful
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// for us as we&#39;ll see in the instance_init callback. For now, we declare that we are
-</span><span style="color:#75715e"></span>    <span style="color:#75715e">// goint to save a uintptr to the private data of the object. This pointer will be a
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// going to save a uintptr to the private data of the object. This pointer will be a
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// reference to the Go object matching the instantiated object.
 </span><span style="color:#75715e"></span>	<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">g_type_class_add_private</span>(<span style="color:#a6e22e">klass</span>, <span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gsize</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Sizeof</span>(uintptr(<span style="color:#ae81ff">0</span>))))
 
-    <span style="color:#75715e">// Run the InitClas method provided by the Extendable that was given at Type registration
+    <span style="color:#75715e">// Run the InitClass method provided by the Extendable that was given at Type registration
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// This is when vmethod assignment will take place, which we will cover in the next section.
 </span><span style="color:#75715e"></span>    <span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">ext</span>.<span style="color:#a6e22e">InitClass</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">klass</span>), <span style="color:#a6e22e">data</span>.<span style="color:#a6e22e">elem</span>)
     
