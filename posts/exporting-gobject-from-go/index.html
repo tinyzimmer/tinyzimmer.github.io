@@ -296,7 +296,7 @@ It is the structure through which we&rsquo;ll be able to declare our capabilitie
 <h3 id="quick-primer-on-promoted-methods-in-go">Quick Primer on Promoted Methods in Go</h3>
 <p>The next interface we will need is not for the user to implement, persay, but rather for the developer binding whatever library they are working on to implement.
 We mentioned briefly before about how the GObject system provides method and class inheritance, but this is a feature we don&rsquo;t have in Go strictly speaking.
-We do have the ability to declare embedded fields in a structure and inherit &ldquo;magic methods&rdquo; from them, but that is not quite the same thing.
+We do have the ability to declare embedded fields in a structure and obtain promoted methods from them, but that is not quite the same thing.
 Here is a short snippet to explain this concept in a little more detail.</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
 
@@ -322,11 +322,9 @@ Here is a short snippet to explain this concept in a little more detail.</p>
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// to the one we created above.
 </span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">StructB</span>{<span style="color:#a6e22e">a</span>}
     <span style="color:#75715e">// Because of the single embedded field in our structure, Go is nice
-</span><span style="color:#75715e"></span>    <span style="color:#75715e">// and gives us a &#34;magic method&#34; of Do() that calls up to the StructA
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// and gives us a promoted method of Do() that calls up to the StructA
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// implementation. But we aren&#39;t actually &#34;inheriting&#34; this method. 
-</span><span style="color:#75715e"></span>    <span style="color:#75715e">// The compiler is just giving us a shortcut to it. And if we extend our
-</span><span style="color:#75715e"></span>    <span style="color:#75715e">// StructB further with other structures, the compiler will take our
-</span><span style="color:#75715e"></span>    <span style="color:#75715e">// shortcuts away.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// The compiler is just giving us a &#34;shortcut&#34; to it.
 </span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">Do</span>()
     <span style="color:#75715e">// &gt; Hello World
 </span><span style="color:#75715e"></span>}
@@ -367,7 +365,7 @@ Here is a short snippet to explain this concept in a little more detail.</p>
 </span><span style="color:#75715e"></span>}
 </code></pre></div><p>Where this is not compatible with how GObject operates, is in how the methods on these various structures get addressed.
 In C code using the GType system, it is common to take a pointer to an object that extends on several others, and coerce it to the implementation you are working with at that point in time.
-But that&rsquo;s not the same as what Go is doing above with its magic methods. To try to break this down a little bit more:</p>
+But that&rsquo;s not the same as what Go is doing above with its promoted methods. To try to break this down a little bit more:</p>
 <p><em>None of what I&rsquo;m about to describe is even possible, but if it were the conversation would look a little like this</em></p>
 <ul>
 <li>Go says &ldquo;Here take this <code>StructB</code> instance that extends on <code>StructA</code> but does <code>Do</code> its own way&rdquo;</li>
