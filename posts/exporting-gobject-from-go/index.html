@@ -923,7 +923,6 @@ First, we have the C code that contains our trampolines back to our go exports.<
 
 <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">i</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">interfaceURIHandler</span>) <span style="color:#a6e22e">Type</span>() <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Type</span> { <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">Type</span>(<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">GST_TYPE_URI_HANDLER</span>) }
 <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">i</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">interfaceURIHandler</span>) <span style="color:#a6e22e">Init</span>(<span style="color:#a6e22e">instance</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">glib</span>.<span style="color:#a6e22e">TypeInstance</span>) {
-	<span style="color:#a6e22e">globalURIHdlr</span> = <span style="color:#a6e22e">instance</span>.<span style="color:#a6e22e">GoType</span>.(<span style="color:#a6e22e">URIHandler</span>)
 	<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">uriHandlerInit</span>((<span style="color:#a6e22e">C</span>.<span style="color:#a6e22e">gpointer</span>)(<span style="color:#a6e22e">instance</span>.<span style="color:#a6e22e">GTypeInstance</span>), <span style="color:#66d9ef">nil</span>)
 }
 </code></pre></div><p>And finally, for an example of one of the exported Go functions.</p>
