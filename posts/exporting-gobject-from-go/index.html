@@ -293,10 +293,10 @@ The type system calls into these methods at the appropriate time during type reg
 }
 </code></pre></div><p>The <code>*ObjectClass</code> passed to <code>ClassInit</code> above will be the go-bound representation of the GObjectClass that gets allocated for us during class initialization.
 It is the structure through which we&rsquo;ll be able to declare our capabilities with the type system.</p>
-<h3 id="quick-primer-on-magic-methods-in-go">Quick Primer on Magic Methods in Go</h3>
+<h3 id="quick-primer-on-promoted-methods-in-go">Quick Primer on Promoted Methods in Go</h3>
 <p>The next interface we will need is not for the user to implement, persay, but rather for the developer binding whatever library they are working on to implement.
 We mentioned briefly before about how the GObject system provides method and class inheritance, but this is a feature we don&rsquo;t have in Go strictly speaking.
-We do have the ability to declare unnamed fields in a structure and inherit &ldquo;magic methods&rdquo; from them, but that is not quite the same thing.
+We do have the ability to declare embedded fields in a structure and inherit &ldquo;magic methods&rdquo; from them, but that is not quite the same thing.
 Here is a short snippet to explain this concept in a little more detail.</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
 
@@ -308,7 +308,7 @@ Here is a short snippet to explain this concept in a little more detail.</p>
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">StructA</span> <span style="color:#66d9ef">struct</span>{}
 <span style="color:#66d9ef">func</span> (<span style="color:#a6e22e">s</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">StructA</span>) <span style="color:#a6e22e">Do</span>() { <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;Hello World&#34;</span>) }
 
-<span style="color:#75715e">// Another structure that contains a single unnamed member of StructA
+<span style="color:#75715e">// Another structure that contains a single embedded member of StructA
 </span><span style="color:#75715e">// This is NOT inheritance even though it may look and seem like it.
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">StructB</span> <span style="color:#66d9ef">struct</span>{ <span style="color:#f92672">*</span><span style="color:#a6e22e">StructA</span> }
 
@@ -321,7 +321,7 @@ Here is a short snippet to explain this concept in a little more detail.</p>
     <span style="color:#75715e">// Create an instance of StructB setting it&#39;s StructA member
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// to the one we created above.
 </span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">StructB</span>{<span style="color:#a6e22e">a</span>}
-    <span style="color:#75715e">// Because of the single unnamed field in our structure, Go is nice
+    <span style="color:#75715e">// Because of the single embedded field in our structure, Go is nice
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// and gives us a &#34;magic method&#34; of Do() that calls up to the StructA
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// implementation. But we aren&#39;t actually &#34;inheriting&#34; this method. 
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// The compiler is just giving us a shortcut to it. And if we extend our
@@ -358,7 +358,7 @@ Here is a short snippet to explain this concept in a little more detail.</p>
 </span><span style="color:#75715e"></span>    <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">Do</span>()
     <span style="color:#75715e">// &gt; World Hello
 </span><span style="color:#75715e"></span>
-    <span style="color:#75715e">// We did not actually override the Do() method. We have an unnamed
+    <span style="color:#75715e">// We did not actually override the Do() method. We have an embedded
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// field of type StructA that automatically took on the name of the
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// struct itself. And we have access to all of its properties as we
 </span><span style="color:#75715e"></span>    <span style="color:#75715e">// do any other field in our struct.
